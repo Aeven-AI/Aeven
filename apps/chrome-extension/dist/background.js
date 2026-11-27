@@ -2056,6 +2056,96 @@ async function prepareTab(tab, overlayScript) {
 	observePage(tab);
 }
 //#endregion
+//#region src/indicator-text.ts
+const EN = {
+	working: (step) => `Æven · ${step}`,
+	steps: {
+		default: "Working",
+		navigate: "Opening a page",
+		back: "Going back",
+		forward: "Going forward",
+		reload: "Reloading",
+		click: "Clicking",
+		hover: "Pointing",
+		drag: "Dragging",
+		type: "Typing",
+		press: "Typing",
+		select: "Filling in",
+		check: "Filling in",
+		scroll: "Scrolling",
+		upload: "Uploading files",
+		wait: "Waiting for the page",
+		read: "Reading the page",
+		content: "Reading the page",
+		snapshot: "Reading the page",
+		screenshot: "Looking at the page"
+	},
+	input: "Æven needs your input",
+	done: "Æven finished"
+};
+const ZH = {
+	working: (step) => `Æven · ${step}`,
+	steps: {
+		default: "正在工作",
+		navigate: "正在打开页面",
+		back: "正在后退",
+		forward: "正在前进",
+		reload: "正在刷新",
+		click: "正在点击",
+		hover: "正在指向",
+		drag: "正在拖动",
+		type: "正在输入",
+		press: "正在输入",
+		select: "正在填写",
+		check: "正在填写",
+		scroll: "正在滚动",
+		upload: "正在上传文件",
+		wait: "正在等待页面",
+		read: "正在阅读页面",
+		content: "正在阅读页面",
+		snapshot: "正在阅读页面",
+		screenshot: "正在查看页面"
+	},
+	input: "Æven 需要你来操作",
+	done: "Æven 已完成"
+};
+const ES = {
+	working: (step) => `Æven · ${step}`,
+	steps: {
+		default: "Trabajando",
+		navigate: "Abriendo una página",
+		back: "Volviendo atrás",
+		forward: "Avanzando",
+		reload: "Recargando",
+		click: "Haciendo clic",
+		hover: "Señalando",
+		drag: "Arrastrando",
+		type: "Escribiendo",
+		press: "Escribiendo",
+		select: "Rellenando",
+		check: "Rellenando",
+		scroll: "Desplazándose",
+		upload: "Subiendo archivos",
+		wait: "Esperando a la página",
+		read: "Leyendo la página",
+		content: "Leyendo la página",
+		snapshot: "Leyendo la página",
+		screenshot: "Mirando la página"
+	},
+	input: "Æven necesita tu ayuda",
+	done: "Æven terminó"
+};
+/**
+* The copy for the browser's interface language.
+* @returns English, Chinese, or Spanish copy.
+*/
+function indicatorCopy() {
+	const language = chrome.i18n.getUILanguage().toLowerCase();
+	if (language.startsWith("zh")) return ZH;
+	if (language.startsWith("es")) return ES;
+	return EN;
+}
+//#endregion
 //#region src/background.ts
 /**
 * The Aeven extension's service worker: it connects to the Aeven desktop app
@@ -2066,7 +2156,14 @@ async function prepareTab(tab, overlayScript) {
 * brought to the front so the user watches it work; it attaches
 * `chrome.debugger` to those tabs alone, and only while it acts: Chrome shows its
 * "started debugging this browser" bar while a debugger is attached, so a tab is
-* detached once the agent has left it idle for `IDLE_DETACH_MS`. History
+* detached once the agent has left it idle for `IDLE_DETACH_MS`. While it is
+* attached, the tab shows the agent's indicator: a glow in the pointer's blue, a
+* status tag naming the current step, and the Æven tab icon, removed before the
+* debugger detaches. The app's `indicate` operation marks a step that waits for
+* the person (the indicator then stays) or the agent finishing, each with a
+* notification that brings the tab forward when clicked. The tab group's name
+* carries the same state as a mark: ⌛ working, ✋ waiting for the person, ✅
+* finished. History
 * and bookmarks are read on request; the app asks the user before it requests them.
 * Two kinds of connection carry the same messages: the desktop app's
 * WebSocket (or an older app's native host), and an Aeven web page (`externally_connectable`), which is how hosted
@@ -2101,8 +2198,14 @@ const APP_PORTS = [
 const HOST = "io.aeven.browser";
 /** The request and event set this extension speaks; the app refuses an older one. */
 const PROTOCOL = 3;
-/** Title of the tab group the agent's tabs live in. */
-const GROUP_TITLE = "Aeven";
+/** Name of the tab group the agent's tabs live in; a status mark from `GROUP_MARKS` may precede it. */
+const GROUP_NAME = "Æven";
+/** The mark before the group's name while the agent works, while a step waits for the person, and when it finished. */
+const GROUP_MARKS = {
+	working: "⌛",
+	input: "✋",
+	done: "✅"
+};
 /** Session-storage key of the agent's tab ids, which survive the worker restarting. */
 const TABS_KEY = "agentTabs";
 /** Local-storage key of this install's id, which tells the app's connections from different browsers apart. */
@@ -2142,6 +2245,12 @@ const running = /* @__PURE__ */ new Map();
 const idleTimers = /* @__PURE__ */ new Map();
 /** The agent pointer as a page script, bundled beside this worker. */
 let overlayScript;
+/** The agent's indicator (glow, status tag, tab icon) as a page script, bundled beside this worker. */
+let indicatorScript;
+/** The status tag's font as base64 and the Æven icon as a data URL, read once from the extension's files. */
+let indicatorAssets;
+/** Agent tabs whose step waits for the person: their indicator stays on the page when the debugger detaches. */
+const waiting = /* @__PURE__ */ new Set();
 const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
 	for (const id of stored[TABS_KEY] ?? []) agentTabs.add(id);
 });
@@ -2500,25 +2609,135 @@ function forget(tabId) {
 	targets.delete(tabId);
 }
 /**
+* Whether an operation runs on a tab.
+* @param tabId - the tab.
+* @returns true while one does.
+*/
+function busy(tabId) {
+	return [...running.values()].some((operation) => operation.tabId === tabId);
+}
+/**
+* Detach the debugger from an agent tab, removing its indicator first unless a step waits for the person there.
+* A tab an operation started on meanwhile stays attached.
+* @param tabId - the tab.
+*/
+function release(tabId) {
+	const cleared = waiting.has(tabId) ? Promise.resolve() : drawIndicator(tabId, void 0);
+	if (!waiting.has(tabId)) unmarkWorking(tabId);
+	cleared.then(() => {
+		if (!attached.has(tabId) || busy(tabId)) return;
+		forget(tabId);
+		chrome.debugger.detach({ tabId }).catch(() => void 0);
+	});
+}
+/**
+* Take the working mark off an agent tab's group once the agent stopped acting there; a waiting or finished mark stays.
+* @param tabId - the tab.
+*/
+async function unmarkWorking(tabId) {
+	const tab = await chrome.tabs.get(tabId).catch(() => void 0);
+	if (tab === void 0 || tab.groupId < 0) return;
+	if ((await chrome.tabGroups.get(tab.groupId).catch(() => void 0))?.title === `${GROUP_MARKS.working}${GROUP_NAME}`) await markGroup(tabId, void 0);
+}
+/**
 * Detach the debugger from a tab once no operation runs on it, which removes Chrome's debugging bar.
 * @param tabId - the tab.
 */
 function detachWhenIdle(tabId) {
 	clearTimeout(idleTimers.get(tabId));
-	if ([...running.values()].some((operation) => operation.tabId === tabId)) return;
+	if (busy(tabId)) return;
 	idleTimers.set(tabId, setTimeout(() => {
 		idleTimers.delete(tabId);
-		if (!attached.has(tabId) || [...running.values()].some((operation) => operation.tabId === tabId)) return;
-		forget(tabId);
-		chrome.debugger.detach({ tabId }).catch(() => void 0);
+		if (!attached.has(tabId) || busy(tabId)) return;
+		release(tabId);
 	}, IDLE_DETACH_MS));
 }
 /** Detach every agent tab: without a connection nothing drives them, so Chrome's debugging bar goes too. */
 function detachAll() {
-	for (const tabId of [...attached]) {
-		forget(tabId);
-		chrome.debugger.detach({ tabId }).catch(() => void 0);
+	for (const tabId of [...attached]) release(tabId);
+}
+/**
+* One of the extension's files, base64-encoded.
+* @param path - the file, relative to the extension's root.
+* @returns its bytes as base64.
+*/
+async function base64Of(path) {
+	const bytes = new Uint8Array(await (await fetch(chrome.runtime.getURL(path))).arrayBuffer());
+	let binary = "";
+	for (let offset = 0; offset < bytes.length; offset += 32768) binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+	return btoa(binary);
+}
+/**
+* Show or remove the agent's indicator in an attached agent tab: the glow around
+* the page, the status tag, and the Æven tab icon (`indicator-page.ts`). A tab
+* without the debugger is left as it is, since drawing would attach it and bring
+* back Chrome's debugging bar.
+* @param tabId - the tab.
+* @param view - what to show; undefined removes the indicator.
+*/
+async function drawIndicator(tabId, view) {
+	if (!attached.has(tabId)) return;
+	indicatorScript ??= fetch(chrome.runtime.getURL("indicator-page.iife.js")).then(async (response) => await response.text());
+	indicatorAssets ??= Promise.all([base64Of("google-sans-flex-latin-wght-normal.woff2"), base64Of("icons/icon-32.png")]).then(([font, icon]) => ({
+		font,
+		icon: `data:image/png;base64,${icon}`
+	}));
+	const [script, assets] = await Promise.all([indicatorScript, indicatorAssets]);
+	const evaluate = async (expression) => (await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+		expression,
+		returnByValue: true
+	})).result?.value;
+	const paint = async () => {
+		if (await evaluate("window.__aevenIndicator?.hasFont() === true") !== true) await evaluate(`if (!window.__aevenIndicator) { ${script} } window.__aevenIndicator.loadFont(${JSON.stringify(assets.font)}); true`);
+		await evaluate(view === void 0 ? "window.__aevenIndicator.clear(); true" : `window.__aevenIndicator.show(${JSON.stringify({
+			...view,
+			icon: assets.icon
+		})}); true`);
+	};
+	await paint().catch(() => {});
+}
+/**
+* Notify the person about an agent tab; clicking the notification brings the tab forward.
+* @param tabId - the tab.
+* @param title - what happened.
+* @param message - the detail, or empty for the tab's title.
+*/
+function notify(tabId, title, message) {
+	chrome.tabs.get(tabId).then(async (tab) => {
+		await chrome.notifications.create(`aeven-tab-${String(tabId)}`, {
+			type: "basic",
+			iconUrl: chrome.runtime.getURL("icons/icon-128.png"),
+			title,
+			message: message === "" ? tab.title ?? "" : message
+		});
+	}).catch(() => {});
+}
+/**
+* Show that a step in an agent tab waits for the person, that the agent finished, or neither.
+* @param tabId - the tab.
+* @param input - `state` (`input`, `done`, or `clear`) and an optional `message` the agent wrote.
+* @throws {Error} when the state is none of those.
+*/
+async function attention(tabId, input) {
+	const state = input.state;
+	if (state === "clear") {
+		waiting.delete(tabId);
+		markGroup(tabId, void 0);
+		await drawIndicator(tabId, void 0);
+		return;
 	}
+	if (state !== "input" && state !== "done") throw new Error("indicate needs a state of input, done, or clear");
+	const message = typeof input.message === "string" ? input.message.slice(0, 300) : "";
+	const copy = indicatorCopy();
+	const title = state === "input" ? copy.input : copy.done;
+	if (state === "input") waiting.add(tabId);
+	else waiting.delete(tabId);
+	markGroup(tabId, state);
+	await drawIndicator(tabId, {
+		tone: state,
+		text: message === "" ? title : `${title} · ${message}`
+	});
+	notify(tabId, title, message);
 }
 /**
 * A tab the agent opened, refusing any other.
@@ -2535,19 +2754,37 @@ function agentTab(value) {
 */
 async function group(tab) {
 	if (tab.id === void 0) return;
-	const [existing] = await chrome.tabGroups.query({
-		title: GROUP_TITLE,
-		windowId: tab.windowId
-	});
+	const existing = (await chrome.tabGroups.query({ windowId: tab.windowId })).find((found) => isAgentGroup(found.title));
 	const groupId = await chrome.tabs.group(existing === void 0 ? { tabIds: tab.id } : {
 		tabIds: tab.id,
 		groupId: existing.id
 	});
 	await chrome.tabGroups.update(groupId, existing === void 0 ? {
-		title: GROUP_TITLE,
+		title: GROUP_NAME,
 		color: "grey",
 		collapsed: false
 	} : { collapsed: false });
+}
+/**
+* Whether a tab group is the agent's: its name, with or without a status mark, or `Aeven`, as earlier releases named it.
+* @param title - the group's title.
+* @returns true for the agent's group.
+*/
+function isAgentGroup(title) {
+	return title === GROUP_NAME || title === "Aeven" || Object.values(GROUP_MARKS).some((mark) => title === `${mark}${GROUP_NAME}`);
+}
+/**
+* Put a status mark before the name of the agent's group an agent tab is in.
+* @param tabId - the tab.
+* @param mark - the state to show; undefined shows the name alone.
+*/
+async function markGroup(tabId, mark) {
+	const tab = await chrome.tabs.get(tabId).catch(() => void 0);
+	if (tab === void 0 || tab.groupId < 0) return;
+	const found = await chrome.tabGroups.get(tab.groupId).catch(() => void 0);
+	if (found === void 0 || !isAgentGroup(found.title)) return;
+	const title = mark === void 0 ? GROUP_NAME : `${GROUP_MARKS[mark]}${GROUP_NAME}`;
+	if (found.title !== title) await chrome.tabGroups.update(tab.groupId, { title }).catch(() => void 0);
 }
 /**
 * Perform one request.
@@ -2563,16 +2800,30 @@ async function handle(method, params, key, connection) {
 		case "operate": {
 			const tabId = agentTab(params.tabId);
 			if (typeof params.operation !== "string") throw new Error("operate needs an operation");
+			if (params.operation === "indicate") {
+				await attention(tabId, params.input ?? {});
+				return {};
+			}
 			const controller = new AbortController();
 			clearTimeout(idleTimers.get(tabId));
 			running.set(key, {
 				controller,
 				tabId
 			});
+			const copy = indicatorCopy();
+			const view = {
+				tone: "working",
+				text: copy.working(copy.steps[params.operation] ?? copy.steps.default)
+			};
 			try {
-				return await automate(await target(tabId), params.operation, params.input ?? {}, controller.signal, {});
+				const tab = await target(tabId);
+				waiting.delete(tabId);
+				markGroup(tabId, "working");
+				await drawIndicator(tabId, view);
+				return await automate(tab, params.operation, params.input ?? {}, controller.signal, {});
 			} finally {
 				running.delete(key);
+				drawIndicator(tabId, view);
 				detachWhenIdle(tabId);
 			}
 		}
@@ -2634,6 +2885,14 @@ async function handle(method, params, key, connection) {
 		default: throw new Error(`unknown request ${method}`);
 	}
 }
+chrome.notifications.onClicked.addListener((id) => {
+	const tabId = Number(/^aeven-tab-(\d+)$/.exec(id)?.[1]);
+	if (!Number.isSafeInteger(tabId)) return;
+	chrome.notifications.clear(id);
+	chrome.tabs.update(tabId, { active: true }).then(async (tab) => {
+		if (tab !== void 0) await chrome.windows.update(tab.windowId, { focused: true });
+	}).catch(() => {});
+});
 chrome.debugger.onDetach.addListener((source) => {
 	if (source.tabId !== void 0) forget(source.tabId);
 });

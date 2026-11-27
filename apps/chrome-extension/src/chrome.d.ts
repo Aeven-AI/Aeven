@@ -27,6 +27,7 @@ declare namespace chrome {
     function create(properties: { url?: string; active?: boolean }): Promise<Tab>
     function get(tabId: number): Promise<Tab>
     function remove(tabId: number): Promise<void>
+    function update(tabId: number, properties: { active?: boolean }): Promise<Tab | undefined>
     function group(options: { tabIds: number | number[]; groupId?: number }): Promise<number>
     interface TabChange { url?: string; title?: string; status?: string }
     const onUpdated: { addListener(callback: (tabId: number, change: TabChange, tab: Tab) => void): void }
@@ -35,6 +36,7 @@ declare namespace chrome {
   export namespace tabGroups {
     interface TabGroup { id: number; title?: string; windowId: number }
     function query(query: { title?: string; windowId?: number }): Promise<TabGroup[]>
+    function get(groupId: number): Promise<TabGroup>
     function update(groupId: number, properties: { title?: string; color?: string; collapsed?: boolean }): Promise<TabGroup>
   }
   // `debugger` is a reserved word, so the namespace is declared under another name and exported as it.
@@ -64,6 +66,17 @@ declare namespace chrome {
   }
   export namespace management {
     function getSelf(): Promise<{ installType: 'admin' | 'development' | 'normal' | 'sideload' | 'other' }>
+  }
+  export namespace windows {
+    function update(windowId: number, properties: { focused?: boolean }): Promise<unknown>
+  }
+  export namespace notifications {
+    function create(id: string, options: { type: 'basic'; iconUrl: string; title: string; message: string }): Promise<string>
+    function clear(id: string): Promise<boolean>
+    const onClicked: { addListener(callback: (id: string) => void): void }
+  }
+  export namespace i18n {
+    function getUILanguage(): string
   }
   export namespace alarms {
     function create(name: string, info: { periodInMinutes: number }): void
