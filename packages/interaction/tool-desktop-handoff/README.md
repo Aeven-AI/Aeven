@@ -41,7 +41,7 @@ The field is optional; an invalid value fails plugin load.
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The tool dispatches `desktop-handoff/offer` scoped to the calling agent, carrying the model's `reason` (`computer`, `files`, `terminal`, `device`, or `models`) and a signal bounded by `answerTimeoutMs`. `@aeven/api-remotes` forwards it to the window showing that session, which opens the dialog with the explanation for that reason and answers `shown`; a window showing another session calls `next()`, and the final fallback answers `no-window`. Because the offer travels as a live event, a conversation loaded later from its history never reopens the dialog.
+The tool dispatches `desktop-handoff/offer` scoped to the calling agent, carrying the model's `reason` (`computer`, `browser`, `files`, `terminal`, `device`, or `models`) and a signal bounded by `answerTimeoutMs`. `@aeven/api-remotes` forwards it to the window showing that session, which opens the dialog with the explanation for that reason and answers `shown`; a window showing another session calls `next()`, and the final fallback answers `no-window`. Because the offer travels as a live event, a conversation loaded later from its history never reopens the dialog.
 
 ## Model Experience
 

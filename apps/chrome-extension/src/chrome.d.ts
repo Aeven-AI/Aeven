@@ -4,7 +4,7 @@
  */
 declare namespace chrome {
   export namespace runtime {
-    interface MessageSender { tab?: tabs.Tab; origin?: string }
+    interface MessageSender { tab?: tabs.Tab; origin?: string; url?: string }
     interface Port {
       postMessage(message: unknown): void
       disconnect(): void
@@ -15,7 +15,6 @@ declare namespace chrome {
     function sendMessage(message: unknown): Promise<unknown>
     const onMessage: { addListener(callback: (message: unknown, sender: MessageSender) => void): void }
     const onConnectExternal: { addListener(callback: (port: Port) => void): void }
-    function connectNative(application: string): Port
     function getManifest(): { version: string }
     function getURL(path: string): string
     const lastError: { message?: string } | undefined
@@ -51,6 +50,7 @@ declare namespace chrome {
   export namespace history {
     interface HistoryItem { url?: string; title?: string; lastVisitTime?: number; visitCount?: number }
     function search(query: { text: string; startTime?: number; maxResults?: number }): Promise<HistoryItem[]>
+    function deleteUrl(details: { url: string }): Promise<void>
   }
   export namespace bookmarks {
     interface BookmarkTreeNode { url?: string; title: string; dateAdded?: number }

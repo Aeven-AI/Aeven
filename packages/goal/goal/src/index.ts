@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
 import type { ZodType } from 'zod'
@@ -13,7 +13,6 @@ import { agentEvents } from '@aeven/agent'
 import type { Agent } from '@aeven/agent'
 import { SessionSeq } from '@aeven/session'
 import type { Session, SessionEvent, SessionLogOffset } from '@aeven/session'
-import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
 import type {} from '@aeven/session-projection'
 import type { ProjectionDefinition } from '@aeven/session-projection'
 import {
@@ -28,7 +27,6 @@ import {
 } from './runtime.ts'
 import type {
   CreateGoalRequest,
-  CreateGoalResult,
   EditGoalRequest,
   GoalActivation,
   GoalBlockReason,
@@ -237,7 +235,7 @@ function resolveBlockReason(reason: unknown): GoalBlockReason {
 }
 
 /** Goal service (`ctx.goals`) backed exclusively by the owning session log. */
-export class GoalService extends TypertRemoteService {
+export class GoalService extends Service {
   static inject = ['agents', 'sessionProjections']
 
   static Config: z<Config> = z.object({
@@ -323,7 +321,6 @@ export class GoalService extends TypertRemoteService {
    * @param request - at least one replacement field.
    * @returns the edited view.
    */
-  @Remote('edit')
   edit(agent: Agent, ref: GoalRef, request: EditGoalRequest): GoalView {
     const [state, runtime] = this.prepareMutation(agent)
     const currentState = this.expectCurrent(state, ref)
@@ -346,7 +343,6 @@ export class GoalService extends TypertRemoteService {
    * @param ref - expected current revision.
    * @returns the paused view.
    */
-  @Remote('pause')
   pause(agent: Agent, ref: GoalRef): GoalView {
     return this.transition(agent, ref, 'pause', ['active'], 'paused', 'disarmed')
   }
@@ -358,7 +354,6 @@ export class GoalService extends TypertRemoteService {
    * @param ref - expected current revision.
    * @returns the active view.
    */
-  @Remote('resume')
   resume(agent: Agent, ref: GoalRef): GoalView {
     const [state, runtime] = this.prepareMutation(agent)
     const currentState = this.expectCurrent(state, ref)
@@ -385,7 +380,6 @@ export class GoalService extends TypertRemoteService {
    * @param ref - expected current revision.
    * @returns the completed view.
    */
-  @Remote('complete')
   complete(agent: Agent, ref: GoalRef): GoalView {
     return this.transition(
       agent,
@@ -427,7 +421,6 @@ export class GoalService extends TypertRemoteService {
    * @param ref - expected current revision.
    * @returns the tombstone ref whose revision is one past the cleared snapshot.
    */
-  @Remote('clear')
   clear(agent: Agent, ref: GoalRef): GoalRef {
     const [state, runtime] = this.prepareMutation(agent)
     const currentState = this.expectCurrent(state, ref)
@@ -611,18 +604,6 @@ export class GoalService extends TypertRemoteService {
       updatedAt: state.updatedAt,
       activation: runtime.activation,
     }
-  }
-
-  /**
-   * Create one Goal through the remote boundary.
-   * @param agent - exact live Agent resolved from the wire identity.
-   * @param request - objective and optional round cap.
-   * @returns the created Goal identity.
-   */
-  @Remote('create')
-  remoteExportCreate(agent: Agent, request: CreateGoalRequest): CreateGoalResult {
-    const view = this.create(agent, request)
-    return { ref: { id: view.id, revision: view.revision } }
   }
 }
 

@@ -79,7 +79,6 @@
     "@aeven/credentials": "workspace:^",
     "@aeven/device": "workspace:^",
     "@aeven/file-reference": "workspace:^",
-    "@aeven/goal": "workspace:^",
     "@aeven/host-plugin-inventory": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/message-feedback": "workspace:^",

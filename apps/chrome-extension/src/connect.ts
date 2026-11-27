@@ -1,5 +1,8 @@
 /**
- * The page the Aeven app opens when it starts the browser for the agent: it wakes
- * the extension's worker, which connects to the app and closes this tab.
+ * The page the Aeven app opens when it starts the browser for the agent or pairs
+ * this extension: it wakes the extension's worker with the pairing secret the
+ * app put in the fragment, and the worker connects to the app and closes this tab.
  */
-void chrome.runtime.sendMessage({ wake: true })
+const secret = location.hash.slice(1)
+history.replaceState(null, '', location.pathname)
+void chrome.runtime.sendMessage({ wake: true, secret })

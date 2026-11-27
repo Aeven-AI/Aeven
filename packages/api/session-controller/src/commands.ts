@@ -18,10 +18,13 @@ import type { SessionEvent, SessionHeader, SessionId, TurnEndReason, UserMessage
 import { SessionQueryError, type SessionObservation } from '@aeven/session-query'
 import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
+import { assertNever } from '@aeven/util-values'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
 import { WorkingDirectoryUnavailableError, sessionDirectory } from '@aeven/working-directory'
 import type { HandoffPlacement, SessionHandoffInput } from '@aeven/session-handoff'
+import type { GoalRef } from '@aeven/goal'
+import type {} from '@aeven/commands'
 import type { SubagentPromptPreparation, SubagentPromptRequest } from '@aeven/subagent'
 import {
   ApiSessionAgentController,
@@ -39,6 +42,8 @@ import type {
   SessionAttachmentValue,
   SessionCancelRequest,
   SessionCancelValue,
+  SessionCommandRequest,
+  SessionCommandValue,
   SessionCreateRequest,
   SessionCreateValue,
   SessionEditRequest,
@@ -47,6 +52,9 @@ import type {
   SessionContinueOnValue,
   SessionForkRequest,
   SessionForkValue,
+  SessionGoalChange,
+  SessionGoalRequest,
+  SessionGoalValue,
   SessionPlacementRequest,
   SessionDesktopValue,
   SessionPlacementValue,
@@ -184,6 +192,11 @@ function editedContent(content: UserMessage['content'], text: string): UserMessa
   }
   if (!placed) edited.push({ type: 'text', text })
   return edited
+}
+
+/** Whether a goal change can arm automatic goal rounds, which then run as turns of the Session. */
+function startsGoalRounds(change: SessionGoalChange): boolean {
+  return change.kind === 'create' || change.kind === 'edit' || change.kind === 'resume'
 }
 
 /** Implements Session business commands delegated by the Session Controller Remote service. */
@@ -860,6 +873,70 @@ export class SessionCommandController {
   }
 
   /**
+   * Change a Session's goal on the device that writes the Session. Pausing, completing, and clearing write here once
+   * this device claims the Session (a synced Session is a read-only copy until claimed), and travel to the device
+   * that runs a turn of it otherwise. Creating, editing, and resuming can start goal rounds, so they go where a
+   * prompt goes: to the Session's home device first.
+   * @param request - Session identity and the change.
+   * @returns the goal's new revision when this device applied the change, or the forward receipt.
+   * @throws Error when this Host mounts no goal service; the goal service's refusals, such as a stale revision, when
+   *   this device applies the change.
+   */
+  async goal(request: SessionGoalRequest): Promise<SessionGoalValue> {
+    const goals = this.ctx.get('goals')
+    if (goals === undefined) throw new Error('session.goal needs the goal service, which this Host does not mount')
+    const owner = startsGoalRounds(request.change)
+      ? await this.claimRunnerAccount(request.sessionId)
+      : await this.claimForChange(request.sessionId)
+    if (owner !== undefined) {
+      await this.forward(owner, request.sessionId, 'goal', request)
+      return { delivery: 'forwarded' }
+    }
+    try {
+      const agent = await this.resolveAgent(request.sessionId)
+      const { change } = request
+      let ref: GoalRef
+      switch (change.kind) {
+        case 'create': ref = goals.create(agent, change.request); break
+        case 'edit': ref = goals.edit(agent, change.ref, change.request); break
+        case 'pause': ref = goals.pause(agent, change.ref); break
+        case 'resume': ref = goals.resume(agent, change.ref); break
+        case 'complete': ref = goals.complete(agent, change.ref); break
+        case 'clear': ref = goals.clear(agent, change.ref); break
+        default: assertNever(change)
+      }
+      return { delivery: 'applied', ref: { id: ref.id, revision: ref.revision } }
+    } finally {
+      await this.endChange(request.sessionId)
+    }
+  }
+
+  /**
+   * Run one slash-command line on the device that writes the Session; a command can start a turn, so the line goes
+   * where a prompt goes: to the Session's home device first, else here once this device claims the Session.
+   * @param request - Session identity, command line, and composer images.
+   * @param signal - caller cancellation; a forwarded line is not cancelled by it.
+   * @returns the local execution, an unmatched line, or the forward receipt.
+   * @throws Error when this Host mounts no command service.
+   */
+  async command(request: SessionCommandRequest, signal: AbortSignal): Promise<SessionCommandValue> {
+    const commands = this.ctx.get('commands')
+    if (commands === undefined) throw new Error('session.command needs the command service, which this Host does not mount')
+    const owner = await this.claimRunnerAccount(request.sessionId)
+    if (owner !== undefined) {
+      await this.forward(owner, request.sessionId, 'command', request)
+      return { outcome: { kind: 'forwarded' } }
+    }
+    try {
+      const agent = await this.resolveAgent(request.sessionId)
+      const execution = await commands.execute(agent, request.line, request.images, signal)
+      return { outcome: execution === undefined ? { kind: 'unmatched' } : { kind: 'executed', execution } }
+    } finally {
+      await this.endChange(request.sessionId)
+    }
+  }
+
+  /**
    * Cancel one live ordinary Agent while retaining pending inbox work.
    * @param request - Session whose active Agent turn is cancelled.
    * @returns acknowledgement that cancellation was requested.
@@ -1095,6 +1172,8 @@ export class SessionCommandController {
       case 'retry': await this.retry(request); return
       case 'queue': await this.updateQueue(request as SessionUpdateQueueRequest); return
       case 'cancel': await this.cancel(request); return
+      case 'goal': await this.goal(request as SessionGoalRequest); return
+      case 'command': await this.command(request as SessionCommandRequest, new AbortController().signal); return
       // Routed by the parent Session; the forwarding device validated the request before it travelled.
       case SUBAGENT_PROMPT_OPERATION: {
         const subagents = this.ctx.get('subagents')

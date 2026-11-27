@@ -2059,8 +2059,8 @@ async function prepareTab(tab, overlayScript) {
 //#region src/background.ts
 /**
 * The Aeven extension's service worker: it connects to the Aeven desktop app
-* through the app's native messaging host and serves the agent's requests on the
-* browser it runs in.
+* over the WebSocket the app serves on the loopback interface and serves the
+* agent's requests on the browser it runs in.
 *
 * The agent works only in tabs it opened, kept in an "Aeven" tab group and
 * brought to the front so the user watches it work; it attaches
@@ -2068,15 +2068,30 @@ async function prepareTab(tab, overlayScript) {
 * "started debugging this browser" bar while a debugger is attached, so a tab is
 * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
 * and bookmarks are read on request; the app asks the user before it requests them.
-* Two kinds of connection carry the same messages: the desktop app's native
-* host, and an Aeven web page (`externally_connectable`), which is how hosted
+* Two kinds of connection carry the same messages: the desktop app's
+* WebSocket, and an Aeven web page (`externally_connectable`), which is how hosted
 * Aeven reaches this browser; localhost pages may connect only to an unpacked
 * development install. Messages are `{ id, method, params }` requests answered on
 * the asking connection with `{ id, result }` or `{ id, error }`, and
 * `{ event, ... }` notifications sent to every connection.
+*
+* The app's WebSocket counts only after both sides prove the pairing secret: the
+* app sends a challenge, this worker answers with its proof and a challenge of
+* its own, and the app proves the secret back, each proof also naming the port
+* (`pairingProof` in apps/desktop/src/browser-extension.ts). A program that
+* listens on the port without the secret gets no answer from this browser. The
+* secret arrives in the fragment of `connect.html`, which only a program running
+* on this computer can open, because no web page may navigate to it.
 */
-/** The native messaging host the Aeven desktop app registers. */
-const HOST = "io.aeven.browser";
+/**
+* The loopback ports the Aeven desktop app serves this extension on, tried in
+* order (`EXTENSION_PORTS` in apps/desktop/src/browser-extension.ts).
+*/
+const APP_PORTS = [
+	47820,
+	47821,
+	47822
+];
 /** The request and event set this extension speaks; the app refuses an older one. */
 const PROTOCOL = 3;
 /** Title of the tab group the agent's tabs live in. */
@@ -2085,13 +2100,25 @@ const GROUP_TITLE = "Aeven";
 const TABS_KEY = "agentTabs";
 /** Local-storage key of this install's id, which tells the app's connections from different browsers apart. */
 const INSTANCE_KEY = "instance";
+/** Local-storage key of the pairing secret the app handed over, 64 hex digits. */
+const SECRET_KEY = "pairingSecret";
 /** Origins of Aeven's own web pages, which may connect in any install. */
 const AEVEN_ORIGIN = /^https:\/\/([a-z\d-]+\.)*aeven\.io$/;
 /** Longest wait before reconnecting to the app, in ms. */
 const MAX_RETRY_MS = 6e4;
 /** How long an agent tab stays attached after its last operation, in ms; a task's steps follow within it. */
 const IDLE_DETACH_MS = 1e4;
-let port;
+/** How often the worker messages the app, in ms; Chrome stops a worker whose WebSocket is quiet for 30 seconds. */
+const KEEPALIVE_MS = 2e4;
+/** How long the app is given to finish the pairing exchange on one port, in ms. */
+const HANDSHAKE_MS = 5e3;
+/** The desktop app's authenticated WebSocket. */
+let app;
+/** Whether a connection attempt is running. */
+let connecting = false;
+/** Whether a pairing arrived during the running attempt, which then tries again at once. */
+let retryNow = false;
+let keepalive;
 /** Connected Aeven web pages. */
 const pages = /* @__PURE__ */ new Set();
 let retryMs = 1e3;
@@ -2125,7 +2152,7 @@ function saveTabs() {
 }
 /** Send one notification to every connection. */
 function post(message) {
-	port?.postMessage(message);
+	app?.send(JSON.stringify(message));
 	for (const page of pages) page.postMessage(message);
 }
 /** What this install says about itself on connecting and when asked. */
@@ -2139,22 +2166,85 @@ async function info() {
 }
 /**
 * Serve one connection's requests, which must be listened for as soon as it opens.
-* @param connection - the native host's or a web page's port.
+* @param connection - the app's WebSocket or a web page's port.
 * @param admitted - settles true once the connection may be served; false leaves its requests unanswered.
 */
 function serve(connection, admitted = Promise.resolve(true)) {
 	const serial = nextConnection++;
-	connection.onMessage.addListener((received) => {
+	connection.listen((received) => {
 		const message = received;
-		if (message.event === "unavailable") return;
-		const { id, method } = message;
+		const id = message?.id;
+		const method = message?.method;
 		if (typeof id !== "number" || typeof method !== "string") return;
 		admitted.then((allowed) => {
-			if (allowed) answer(serial, id, method, message.params ?? {}, (reply) => {
-				connection.postMessage(reply);
+			if (allowed) answer(serial, id, method, message?.params ?? {}, (reply) => {
+				connection.send(reply);
 			});
 		});
 	});
+}
+/**
+* A web page's port as a connection.
+* @param page - the port.
+* @returns the connection.
+*/
+function portConnection(page) {
+	return {
+		send: (message) => {
+			page.postMessage(message);
+		},
+		listen: (listener) => {
+			page.onMessage.addListener(listener);
+		}
+	};
+}
+/**
+* Read one WebSocket frame.
+* @param data - the frame.
+* @returns the message, or undefined when the frame is not JSON text.
+*/
+function readFrame(data) {
+	if (typeof data !== "string") return void 0;
+	try {
+		return JSON.parse(data);
+	} catch {
+		return;
+	}
+}
+/**
+* Random hex digits.
+* @param bytes - how many random bytes.
+* @returns twice as many hex digits.
+*/
+function randomHex(bytes) {
+	return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+/**
+* A proof of the pairing secret: HMAC-SHA256 of `text` under the secret's bytes.
+* @param secret - the pairing secret, 64 hex digits.
+* @param text - the role, the port, and the challenge, colon-separated.
+* @returns the proof, 64 hex digits.
+*/
+async function sign(secret, text) {
+	const bytes = new Uint8Array(secret.match(/../g)?.map((pair) => Number.parseInt(pair, 16)) ?? []);
+	const key = await crypto.subtle.importKey("raw", bytes, {
+		name: "HMAC",
+		hash: "SHA-256"
+	}, false, ["sign"]);
+	const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text)));
+	return Array.from(signature, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+/**
+* Compare two proofs in time that does not depend on where they differ.
+* @param left - one proof.
+* @param right - the other.
+* @returns whether they are equal.
+*/
+function sameProof(left, right) {
+	if (left.length !== right.length) return false;
+	let difference = 0;
+	for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+	return difference === 0;
 }
 /** The browser this extension runs in, as the app names it to the user. */
 function browserName() {
@@ -2168,25 +2258,145 @@ function browserName() {
 		"Chromium"
 	].find((name) => brands.includes(name)) ?? "Chromium";
 }
-/** Connect to the app's host, retrying with backoff while the app is not running. */
-function connect() {
-	if (port !== void 0) return;
-	clearTimeout(retryTimer);
-	const opened = chrome.runtime.connectNative(HOST);
-	port = opened;
-	serve(opened);
-	opened.onDisconnect.addListener(() => {
-		if (port !== opened) return;
-		port = void 0;
-		if (pages.size === 0) detachAll();
-		retryTimer = setTimeout(connect, retryMs);
-		retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
+/**
+* Open the app's WebSocket on one port and run the pairing exchange.
+* @param appPort - the port.
+* @param secret - the pairing secret, or undefined before the app handed one over.
+* @returns the socket once both sides proved the secret, with the frames that arrived since, or undefined.
+*/
+async function handshake(appPort, secret) {
+	return await new Promise((resolve) => {
+		const socket = new WebSocket(`ws://127.0.0.1:${String(appPort)}/`);
+		const challenge = randomHex(16);
+		let answered = false;
+		let settled = false;
+		const finish = (authenticated) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			socket.onclose = null;
+			socket.onerror = null;
+			if (!authenticated) {
+				socket.onmessage = null;
+				socket.close();
+				resolve(void 0);
+				return;
+			}
+			const early = [];
+			socket.onmessage = (event) => {
+				early.push(readFrame(event.data));
+			};
+			resolve({
+				socket,
+				early
+			});
+		};
+		const timer = setTimeout(() => {
+			finish(false);
+		}, HANDSHAKE_MS);
+		socket.onclose = () => {
+			finish(false);
+		};
+		socket.onerror = () => {
+			finish(false);
+		};
+		socket.onmessage = (event) => {
+			const message = readFrame(event.data);
+			if (!answered && message?.event === "challenge" && typeof message.nonce === "string") {
+				answered = true;
+				(secret === void 0 ? Promise.resolve(void 0) : sign(secret, `extension:${String(appPort)}:${message.nonce}`)).then((signed) => {
+					socket.send(JSON.stringify({
+						event: "auth",
+						nonce: challenge,
+						browser: browserName(),
+						proof: signed
+					}));
+				});
+				return;
+			}
+			if (!answered || message?.event !== "authed" || typeof message.proof !== "string" || secret === void 0) {
+				finish(false);
+				return;
+			}
+			const claimed = message.proof;
+			sign(secret, `app:${String(appPort)}:${challenge}`).then((expected) => {
+				finish(sameProof(claimed, expected));
+			});
+		};
 	});
+}
+/**
+* Serve the app on its authenticated WebSocket until it closes.
+* @param socket - the socket.
+* @param early - the frames that arrived before the worker served it.
+*/
+function adopt(socket, early) {
+	if (socket.readyState !== WebSocket.OPEN) {
+		retry();
+		return;
+	}
+	app = socket;
+	retryMs = 1e3;
+	let listener;
+	socket.onmessage = (event) => {
+		listener?.(readFrame(event.data));
+	};
+	serve({
+		send: (message) => {
+			socket.send(JSON.stringify(message));
+		},
+		listen: (received) => {
+			listener = received;
+		}
+	});
+	for (const message of early) listener?.(message);
+	keepalive = setInterval(() => {
+		socket.send(JSON.stringify({ event: "ping" }));
+	}, KEEPALIVE_MS);
+	socket.onclose = () => {
+		if (app !== socket) return;
+		app = void 0;
+		clearInterval(keepalive);
+		if (pages.size === 0) detachAll();
+		retry();
+	};
 	info().then((about) => {
-		if (port === opened) opened.postMessage({
+		if (app === socket) socket.send(JSON.stringify({
 			event: "hello",
 			...about
-		});
+		}));
+	});
+}
+/** Try the app again after the backoff, which doubles up to `MAX_RETRY_MS`. */
+function retry() {
+	clearTimeout(retryTimer);
+	retryTimer = setTimeout(connect, retryMs);
+	retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
+}
+/** Connect to the app, trying each port in order, and retry with backoff while none answers. */
+function connect() {
+	if (app !== void 0 || connecting) return;
+	connecting = true;
+	clearTimeout(retryTimer);
+	(async () => {
+		const stored = (await chrome.storage.local.get(SECRET_KEY))[SECRET_KEY];
+		const secret = typeof stored === "string" ? stored : void 0;
+		for (const appPort of APP_PORTS) {
+			const opened = await handshake(appPort, secret);
+			if (opened !== void 0) return opened;
+		}
+	})().then((opened) => {
+		connecting = false;
+		if (opened !== void 0) {
+			adopt(opened.socket, opened.early);
+			return;
+		}
+		if (retryNow) {
+			retryNow = false;
+			connect();
+			return;
+		}
+		retry();
 	});
 }
 /**
@@ -2415,10 +2625,10 @@ chrome.runtime.onConnectExternal.addListener((page) => {
 	const origin = page.sender?.origin ?? "";
 	const local = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 	const admitted = AEVEN_ORIGIN.test(origin) ? Promise.resolve(true) : local ? chrome.management.getSelf().then((self) => self.installType === "development", () => false) : Promise.resolve(false);
-	serve(page, admitted);
+	serve(portConnection(page), admitted);
 	page.onDisconnect.addListener(() => {
 		pages.delete(page);
-		if (port === void 0 && pages.size === 0) detachAll();
+		if (app === void 0 && pages.size === 0) detachAll();
 	});
 	admitted.then(async (allowed) => {
 		if (!allowed) {
@@ -2433,10 +2643,16 @@ chrome.runtime.onConnectExternal.addListener((page) => {
 	});
 });
 chrome.runtime.onMessage.addListener((message, sender) => {
-	if (message.wake !== true) return;
-	retryMs = 1e3;
-	connect();
+	const wake = message;
+	if (wake.wake !== true) return;
+	const secret = typeof wake.secret === "string" && /^[\da-f]{64}$/.test(wake.secret) ? wake.secret : void 0;
+	(secret === void 0 ? Promise.resolve() : chrome.storage.local.set({ [SECRET_KEY]: secret })).then(() => {
+		retryMs = 1e3;
+		if (connecting) retryNow = true;
+		else connect();
+	});
 	if (sender.tab?.id !== void 0) chrome.tabs.remove(sender.tab.id).catch(() => void 0);
+	if (sender.url !== void 0) chrome.history.deleteUrl({ url: sender.url }).catch(() => void 0);
 });
 chrome.alarms.create("aeven-connect", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(() => {

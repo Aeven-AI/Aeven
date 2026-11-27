@@ -2,7 +2,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the Remote event merge (ctx.remote, `browser/automation`).
 import type {} from '@aeven/api-remotes/client'
-import type { SessionId } from '@aeven/api-remotes/client'
+import type { RemoteFailure, SessionId } from '@aeven/api-remotes/client'
 // Type-only: pulls the session controller's Context merge (ctx.sessions).
 import type {} from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -289,6 +289,16 @@ async function browserTabs(
 }
 
 /**
+ * Whether a Host Chromium call failed because the Host serves no `browserChromium` namespace, as the hosted
+ * deployment, which disables the plugin, does. That is the expected answer there, not a fault to report.
+ * @param error - the call's failure.
+ * @returns true when the Host has no Chromium service.
+ */
+function hostLacksChromium(error: RemoteFailure): boolean {
+  return error.code === 'gateway/invocation-unavailable'
+}
+
+/**
  * The download page of this deployment's Aeven site, which the served page states as
  * `__AVN_AEVEN__.webUrl`; a deployment that names none offers no download.
  * @returns the page, or undefined.
@@ -462,7 +472,9 @@ export function apply(ctx: ClientContext): void {
       remote.browserChromium.describe().then((result) => {
         if (!live) return
         if (result.ok) chromiumName.set(result.value.name)
-        else console.error('ui-sidebar-browser: naming the Host Chromium failed', result.error)
+        else if (!hostLacksChromium(result.error)) {
+          console.error('ui-sidebar-browser: naming the Host Chromium failed', result.error)
+        }
       }, (error: unknown) => {
         console.error('ui-sidebar-browser: naming the Host Chromium failed', error)
       })
@@ -476,7 +488,9 @@ export function apply(ctx: ClientContext): void {
         try {
           const result = await remote.browserChromium.open(sessionId as SessionId, url)
           if (result.ok) return true
-          console.error('ui-sidebar-browser: opening Chromium failed', result.error)
+          if (!hostLacksChromium(result.error)) {
+            console.error('ui-sidebar-browser: opening Chromium failed', result.error)
+          }
           return false
         } catch (error: unknown) {
           console.error('ui-sidebar-browser: opening Chromium failed', error)

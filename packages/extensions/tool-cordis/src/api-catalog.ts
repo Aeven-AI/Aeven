@@ -1146,7 +1146,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the scoped shadow or global definition.',
       },
       {
-        signature: '@Remote async execute( agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal, ): Promise<CommandExecution | undefined>',
+        signature: 'async execute( agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal, ): Promise<CommandExecution | undefined>',
         description: 'Parse and execute a known command without sending it to the model.\n\nA resolved command\'s lifecycle is logged: `command/run` is appended before the handler is invoked and `command/done` after settlement (a thrown or aborted handler settles as `kind: \'error\'`). Both are direct log-only appends — no turn wraps them, and persistence drains them at ordinary checkpoints. Admission misses (syntax or unknown name) log nothing — they never entered a handler. A `command/run` append failure fails the execution loud; a `command/done` append failure on the handler-failure path is contained so the handler\'s own error stays the reported failure.\n\nImage admission is enforced here, not in the composer: images sent to a command that does not declare `input.images`, an absent attachment store, and an exceeded attachment limit each settle as an error result before the handler runs, and a rejected batch publishes no durable object.',
         parameters: [{ name: 'agent', description: 'exact receiving agent.' }, { name: 'line', description: 'complete slash-command line.' }, { name: 'images', description: 'base64-encoded composer images accompanying the line, in submission order; empty for a plain invocation.' }, { name: 'signal', description: 'cancellation signal owned by the UI request.' }],
         returns: 'the settled execution (result + lifecycle pairing id), or `undefined` when syntax or name does not resolve.',
@@ -1754,25 +1754,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the created live view.',
       },
       {
-        signature: '@Remote(\'edit\') edit(agent: Agent, ref: GoalRef, request: EditGoalRequest): GoalView',
+        signature: 'edit(agent: Agent, ref: GoalRef, request: EditGoalRequest): GoalView',
         description: 'Edit objective and/or round cap without changing phase.',
         parameters: [{ name: 'agent', description: 'owning live agent.' }, { name: 'ref', description: 'expected current revision.' }, { name: 'request', description: 'at least one replacement field.' }],
         returns: 'the edited view.',
       },
       {
-        signature: '@Remote(\'pause\') pause(agent: Agent, ref: GoalRef): GoalView',
+        signature: 'pause(agent: Agent, ref: GoalRef): GoalView',
         description: 'Pause an active goal and disarm automatic continuation.',
         parameters: [{ name: 'agent', description: 'owning live agent.' }, { name: 'ref', description: 'expected current revision.' }],
         returns: 'the paused view.',
       },
       {
-        signature: '@Remote(\'resume\') resume(agent: Agent, ref: GoalRef): GoalView',
+        signature: 'resume(agent: Agent, ref: GoalRef): GoalView',
         description: 'Resume and arm a stopped goal, or rearm an active goal after a session-start edge, while its round budget still has capacity.',
         parameters: [{ name: 'agent', description: 'owning live agent.' }, { name: 'ref', description: 'expected current revision.' }],
         returns: 'the active view.',
       },
       {
-        signature: '@Remote(\'complete\') complete(agent: Agent, ref: GoalRef): GoalView',
+        signature: 'complete(agent: Agent, ref: GoalRef): GoalView',
         description: 'Mark a current non-complete goal complete and disarm it.',
         parameters: [{ name: 'agent', description: 'owning live agent.' }, { name: 'ref', description: 'expected current revision.' }],
         returns: 'the completed view.',
@@ -1784,16 +1784,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the blocked view with its durable reason.',
       },
       {
-        signature: '@Remote(\'clear\') clear(agent: Agent, ref: GoalRef): GoalRef',
+        signature: 'clear(agent: Agent, ref: GoalRef): GoalRef',
         description: 'Clear the current goal while retaining a durable tombstone and history.',
         parameters: [{ name: 'agent', description: 'owning live agent.' }, { name: 'ref', description: 'expected current revision.' }],
         returns: 'the tombstone ref whose revision is one past the cleared snapshot.',
-      },
-      {
-        signature: '@Remote(\'create\') remoteExportCreate(agent: Agent, request: CreateGoalRequest): CreateGoalResult',
-        description: 'Create one Goal through the remote boundary.',
-        parameters: [{ name: 'agent', description: 'exact live Agent resolved from the wire identity.' }, { name: 'request', description: 'objective and optional round cap.' }],
-        returns: 'the created Goal identity.',
       },
     ],
   },
@@ -2884,6 +2878,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Continue a Session whose latest turn failed, keeping that turn\'s work.',
         parameters: [{ name: 'request', description: 'Session identity.' }, { name: 'signal', description: 'caller cancellation before the retry begins.' }],
         returns: 'acknowledgement that the continuation entered the Agent inbox.',
+      },
+      {
+        signature: '@Remote(\'goal\') goal(request: SessionGoalRequest, signal: AbortSignal): Promise<SessionGoalValue>',
+        description: 'Change the Session\'s goal on the device of the account that writes the Session.',
+        parameters: [{ name: 'request', description: 'Session identity and the goal change.' }, { name: 'signal', description: 'caller cancellation before the change begins.' }],
+        returns: 'the goal\'s new revision when this device applied the change, or the forward receipt.',
+      },
+      {
+        signature: '@Remote(\'command\') command(request: SessionCommandRequest, signal: AbortSignal): Promise<SessionCommandValue>',
+        description: 'Run one slash-command line on the device of the account that writes the Session.',
+        parameters: [{ name: 'request', description: 'Session identity, command line, and composer images.' }, { name: 'signal', description: 'caller cancellation of a line this device runs.' }],
+        returns: 'the local execution, an unmatched line, or the forward receipt.',
       },
       {
         signature: '@Remote(\'attachment\') attachment(request: SessionAttachmentRequest): Promise<SessionAttachmentValue>',
@@ -7080,10 +7086,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CreateGoalRequest {\n    readonly objective: string;\n    readonly maxGoalRounds?: number;\n}',
   },
   {
-    name: 'CreateGoalResult',
-    declaration: 'export interface CreateGoalResult {\n    readonly ref: GoalRef;\n}',
-  },
-  {
     name: 'CreateSessionOptions',
     declaration: 'export interface CreateSessionOptions {\n    readonly seed?: readonly SessionEvent[];\n    readonly inheritedEventCount?: SessionLogOffset;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly createdAt?: number;\n        readonly isSeeded?: boolean;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n        readonly owner?: string;\n        readonly replica?: true;\n    };\n}',
   },
@@ -7157,7 +7159,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DesktopHandoffReason',
-    declaration: 'export type DesktopHandoffReason = \'computer\' | \'files\' | \'terminal\' | \'device\' | \'models\';',
+    declaration: 'export type DesktopHandoffReason = \'computer\' | \'browser\' | \'files\' | \'terminal\' | \'device\' | \'models\';',
   },
   {
     name: 'DesktopHandoffResult',
@@ -9212,6 +9214,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionClaim = {\n    readonly claimed: true;\n} | {\n    readonly claimed: false;\n};',
   },
   {
+    name: 'SessionCommandOutcome',
+    declaration: 'export type SessionCommandOutcome = {\n    readonly kind: \'executed\';\n    readonly execution: CommandExecution;\n} | {\n    readonly kind: \'unmatched\';\n} | {\n    readonly kind: \'forwarded\';\n};',
+  },
+  {
+    name: 'SessionCommandRequest',
+    declaration: 'export interface SessionCommandRequest {\n    readonly sessionId: SessionId;\n    readonly line: string;\n    readonly images: readonly EncodedImageAttachment[];\n}',
+  },
+  {
+    name: 'SessionCommandValue',
+    declaration: 'export interface SessionCommandValue {\n    readonly outcome: SessionCommandOutcome;\n}',
+  },
+  {
     name: 'SessionContinueOnRequest',
     declaration: 'export interface SessionContinueOnRequest {\n    readonly sessionId: SessionId;\n    readonly target: \'here\' | \'desktop\';\n    readonly device?: string;\n}',
   },
@@ -9338,6 +9352,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionForkValue',
     declaration: 'export interface SessionForkValue {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionGoalChange',
+    declaration: 'export type SessionGoalChange = {\n    readonly kind: \'create\';\n    readonly request: CreateGoalRequest;\n} | {\n    readonly kind: \'edit\';\n    readonly ref: GoalRef;\n    readonly request: EditGoalRequest;\n} | {\n    readonly kind: \'pause\' | \'resume\' | \'complete\' | \'clear\';\n    readonly ref: GoalRef;\n};',
+  },
+  {
+    name: 'SessionGoalRequest',
+    declaration: 'export interface SessionGoalRequest {\n    readonly sessionId: SessionId;\n    readonly change: SessionGoalChange;\n}',
+  },
+  {
+    name: 'SessionGoalValue',
+    declaration: 'export type SessionGoalValue = {\n    readonly delivery: \'applied\';\n    readonly ref: GoalRef;\n} | {\n    readonly delivery: \'forwarded\';\n};',
   },
   {
     name: 'SessionGrantCoverage',

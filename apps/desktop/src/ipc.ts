@@ -194,14 +194,14 @@ export interface AvnDesktopBrowserApi {
    */
   extensionStatus(): Promise<Array<{ instance: string; browser: string }>>
   /**
-   * Whether the browsers are told where to find this app, so the extension can connect.
+   * Whether this app serves the extension's connection.
    * @returns the stored choice; on until the reader turns it off.
    */
   extensionEnabled(): Promise<boolean>
   /**
-   * Store the choice and apply it: off removes this app's registration from every browser, on writes it again.
+   * Store the choice and apply it: off closes the extension's server and connections, on serves again.
    * @param enabled - whether the extension may connect.
-   * @returns resolution after the registration follows the choice.
+   * @returns resolution after the server follows the choice.
    */
   setExtensionEnabled(enabled: boolean): Promise<void>
   /**

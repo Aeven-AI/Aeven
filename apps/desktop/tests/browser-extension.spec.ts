@@ -1,64 +1,101 @@
-// The extension registry over a real local socket: each browser's extension
-// connects through its native host, says which install it is, and the app keeps
-// one connection per install, side by side across browsers.
+// The extension registry over a real loopback WebSocket: each browser's extension
+// proves the pairing secret, says which install it is, and the app keeps one
+// connection per install, side by side across browsers. A connection that cannot
+// prove the secret, or comes from another origin, is refused.
 
+import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { connect, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EXTENSION_IDS, ExtensionLinks, hasExtension, serveExtensions } from '../src/browser-extension.ts'
+import { WebSocket } from 'ws'
+import { EXTENSION_IDS, ExtensionLinks, hasExtension, pairingProof, serveExtensions } from '../src/browser-extension.ts'
 
 const [EXTENSION_ID] = EXTENSION_IDS
+const SECRET = randomBytes(32).toString('hex')
 
 interface FakeInfo { instance?: string; browser: string; protocol: number }
 
 let folder: string
-let socketPath: string
+let port: number
 let registry: ExtensionLinks
 let stop: () => void
-const clients: Socket[] = []
+let unpaired: Array<[string, string]>
+const clients: WebSocket[] = []
 
 beforeEach(async () => {
   folder = await mkdtemp(join(tmpdir(), 'avn-ext-'))
-  socketPath = join(folder, 'ext.sock')
   registry = new ExtensionLinks()
-  stop = await serveExtensions(socketPath, registry)
+  unpaired = []
+  const onUnpaired = (id: string, browser: string): void => { unpaired.push([id, browser]) }
+  ;({ port, stop } = await serveExtensions(registry, { ports: [0], secret: SECRET, onUnpaired }))
 })
 
 afterEach(async () => {
-  for (const client of clients.splice(0)) client.destroy()
+  for (const client of clients.splice(0)) client.terminate()
   stop()
   await rm(folder, { recursive: true, force: true })
 })
 
 /**
- * Connect as an extension's native host would.
+ * Open a WebSocket to the server and run the extension's side of the pairing exchange.
+ * @param options - the origin it connects with and the secret it proves; a missing secret sends no proof.
+ * @returns the socket, whether the server proved the secret back (false when it refused), and the frames that
+ * followed the proof, which the app sends at once.
+ */
+async function pair(
+  options: { origin?: string; secret?: string | undefined } = {},
+): Promise<{ socket: WebSocket; authed: boolean; early: Buffer[] }> {
+  const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/`, { origin: options.origin ?? `chrome-extension://${EXTENSION_ID}` })
+  clients.push(socket)
+  const challenge = randomBytes(16).toString('hex')
+  const secret = 'secret' in options ? options.secret : SECRET
+  const early: Buffer[] = []
+  let proven = false
+  const authed = await new Promise<boolean>((resolve) => {
+    socket.on('error', () => { resolve(false) })
+    socket.on('close', () => { resolve(false) })
+    socket.on('message', (data: Buffer) => {
+      if (proven) {
+        early.push(data)
+        return
+      }
+      const message = JSON.parse(String(data)) as { event?: string; nonce?: string; proof?: string }
+      if (message.event === 'challenge' && message.nonce !== undefined) {
+        const proof = secret === undefined ? undefined : pairingProof(secret, 'extension', port, message.nonce)
+        socket.send(JSON.stringify({ event: 'auth', nonce: challenge, browser: 'Google Chrome', proof }))
+      } else if (message.event === 'authed') {
+        proven = message.proof === pairingProof(SECRET, 'app', port, challenge)
+        resolve(proven)
+      }
+    })
+  })
+  socket.removeAllListeners('message')
+  return { socket, authed, early }
+}
+
+/**
+ * Connect as a paired extension would.
  * @param info - what the extension reports about itself.
  * @param options - whether it answers `info`, sends a hello, and what it answers other requests with.
- * @returns the host-side socket.
+ * @returns the extension's socket.
  */
 async function fakeExtension(
   info: FakeInfo, options: { answerInfo?: boolean; hello?: boolean; answers?: Record<string, unknown> } = {},
-): Promise<Socket> {
-  const socket = connect(socketPath)
-  clients.push(socket)
-  await new Promise<void>((resolve) => { socket.once('connect', resolve) })
-  socket.setEncoding('utf8')
-  let buffer = ''
-  socket.on('data', (chunk: string) => {
-    buffer += chunk
-    for (let newline = buffer.indexOf('\n'); newline >= 0; newline = buffer.indexOf('\n')) {
-      const message = JSON.parse(buffer.slice(0, newline)) as { id: number; method: string }
-      buffer = buffer.slice(newline + 1)
-      if (message.method === 'info') {
-        if (options.answerInfo !== false) socket.write(`${JSON.stringify({ id: message.id, result: info })}\n`)
-      } else if (options.answers !== undefined && message.method in options.answers) {
-        socket.write(`${JSON.stringify({ id: message.id, result: options.answers[message.method] })}\n`)
-      }
+): Promise<WebSocket> {
+  const { socket, authed, early } = await pair()
+  expect(authed).toBe(true)
+  const receive = (data: Buffer): void => {
+    const message = JSON.parse(String(data)) as { id: number; method: string }
+    if (message.method === 'info') {
+      if (options.answerInfo !== false) socket.send(JSON.stringify({ id: message.id, result: info }))
+    } else if (options.answers !== undefined && message.method in options.answers) {
+      socket.send(JSON.stringify({ id: message.id, result: options.answers[message.method] }))
     }
-  })
-  if (options.hello === true) socket.write(`${JSON.stringify({ event: 'hello', ...info })}\n`)
+  }
+  for (const data of early) receive(data)
+  socket.on('message', receive)
+  if (options.hello === true) socket.send(JSON.stringify({ event: 'hello', ...info }))
   return socket
 }
 
@@ -112,7 +149,7 @@ describe('extension connections', () => {
     await vi.waitFor(() => { expect(registry.list()).toHaveLength(1) })
     const link = registry.get('chrome1')
     const pending = link?.request('tabs.list')
-    socket.destroy()
+    socket.terminate()
     await expect(pending).rejects.toThrow('the Aeven extension disconnected')
     await vi.waitFor(() => { expect(registry.list()).toEqual([]) })
   })
@@ -123,6 +160,18 @@ describe('extension connections', () => {
     await vi.waitFor(() => { expect(registry.list()).toHaveLength(2) })
     expect(await registry.get('chrome1')?.request('tabs.list')).toEqual([{ tabId: 7, url: 'https://a.test/', title: 'A' }])
     expect(await registry.get('brave1')?.request('tabs.list')).toEqual([])
+  })
+
+  it('refuses an extension without the secret or with another one, and reports it for pairing', async () => {
+    expect((await pair({ secret: undefined })).authed).toBe(false)
+    expect((await pair({ secret: randomBytes(32).toString('hex') })).authed).toBe(false)
+    expect(registry.list()).toEqual([])
+    expect(unpaired).toEqual([[EXTENSION_ID, 'Google Chrome'], [EXTENSION_ID, 'Google Chrome']])
+  })
+
+  it('refuses a connection from any other origin before the exchange', async () => {
+    expect((await pair({ origin: 'https://example.test' })).authed).toBe(false)
+    expect(unpaired).toEqual([])
   })
 
   it('reports no connection when none arrives in time', async () => {

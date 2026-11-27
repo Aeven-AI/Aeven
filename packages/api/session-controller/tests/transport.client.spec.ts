@@ -80,7 +80,6 @@ function sessionClient(remote: SessionTransportRemote): SessionRemotes {
     $stream: <Item>(options: RemoteStreamOptions<Item>) => (
       new RemoteStream(AVAILABLE_CONNECTION, options)
     ),
-    commands: { execute: () => Promise.reject(new Error('stream tests never run commands')) },
     subagents: {
       list: () => Promise.reject(new Error('stream tests never read the subagent catalog')),
       prompt: () => Promise.reject(new Error('stream tests never prompt a subagent')),

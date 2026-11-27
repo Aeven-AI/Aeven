@@ -1678,31 +1678,31 @@ describe('fixture Connection RPC', () => {
     expect(moved.result.value.workspace.sessionIds).toEqual([attached.result.value.sessionId])
   })
 
-  it('folds the goal lifecycle over the Goal Remotes', async () => {
+  it('folds the goal lifecycle over the Session goal Remote', async () => {
     const rpc = createFixtureConnectionRpc()
     const sessions = createSessionClient(rpc)
     const created = await sessions.create({})
     if (!created.result.ok) throw new Error('create failed')
     const id = created.result.value.sessionId
-    const goal = (endpoint: string, args: Record<string, unknown>) =>
-      rpc.call('/api', endpoint, { args: { agentId: id, ...args } })
+    const goal = (change: Record<string, unknown>) =>
+      rpc.call('/api', 'session/goal', { args: { request: { sessionId: id, change } } })
 
     // create → edit → pause → resume → complete → clear; each mutation advances the CAS
     // revision by one (state rides the projection frames).
-    const goalCreated = await goal('goals/create', { request: { objective: 'ship it' } })
+    const goalCreated = await goal({ kind: 'create', request: { objective: 'ship it' } })
     if (!goalCreated.ok) throw new Error('goal create failed')
     const { id: goalId, revision } = (goalCreated.value as { ref: { id: string; revision: number } }).ref
     expect(revision).toBe(1)
     const ref = (at: number) => ({ id: goalId, revision: at })
-    expect((await goal('goals/edit', { ref: ref(1), request: { objective: 'ship it v2' } })).ok).toBe(true)
-    expect((await goal('goals/pause', { ref: ref(2) })).ok).toBe(true)
-    expect((await goal('goals/resume', { ref: ref(3) })).ok).toBe(true)
+    expect((await goal({ kind: 'edit', ref: ref(1), request: { objective: 'ship it v2' } })).ok).toBe(true)
+    expect((await goal({ kind: 'pause', ref: ref(2) })).ok).toBe(true)
+    expect((await goal({ kind: 'resume', ref: ref(3) })).ok).toBe(true)
     // A stale ref loses the CAS check.
-    expect((await goal('goals/pause', { ref: ref(1) })).ok).toBe(false)
-    expect((await goal('goals/complete', { ref: ref(4) })).ok).toBe(true)
+    expect((await goal({ kind: 'pause', ref: ref(1) })).ok).toBe(false)
+    expect((await goal({ kind: 'complete', ref: ref(4) })).ok).toBe(true)
     // complete → complete is an invalid transition.
-    expect((await goal('goals/complete', { ref: ref(5) })).ok).toBe(false)
-    expect(await goal('goals/clear', { ref: ref(5) })).toEqual({ ok: true, value: ref(6) })
+    expect((await goal({ kind: 'complete', ref: ref(5) })).ok).toBe(false)
+    expect(await goal({ kind: 'clear', ref: ref(5) })).toEqual({ ok: true, value: { delivery: 'applied', ref: ref(6) } })
 
     const goalHistory = await sessions.history({ sessionId: id })
     if (!goalHistory.result.ok) throw new Error('goal history failed')

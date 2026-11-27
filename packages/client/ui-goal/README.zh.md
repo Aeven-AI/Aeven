@@ -43,7 +43,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-条带是投影模式：活目标经 `useProjection('goal')` 到达（由历史尾页播种、`session/projection` 帧更新），因此插件不持有领域 store、不设刷新链、不挂事件监听。注入面只携带四个变更动词，经 `ctx.remote.goals` 调用；每个动词在调用时从会话当前投影值读取 CAS ref，比较并交换（RPC 的 CAS）就是陈旧性护栏。由于 React 的 pending 渲染无法拦住同一帧内的点击，条带会同步为变更建立 single-flight 防护。指令输入投影是独立的 Conversation Definition，在通用命令结果 Node 之前构建 `command-input` Chat Node；它绝不创建 `user/message` 或模型轮次。
+条带是投影模式：活目标经 `useProjection('goal')` 到达（由历史尾页播种、`session/projection` 帧更新），因此插件不持有领域 store、不设刷新链、不挂事件监听。注入面只携带四个变更动词，经 `ctx.remote.session.goal` 调用，它在写入该会话的设备上应用每项变更；每个动词在调用时从会话当前投影值读取 CAS ref，比较并交换（RPC 的 CAS）就是陈旧性护栏。由于 React 的 pending 渲染无法拦住同一帧内的点击，条带会同步为变更建立 single-flight 防护。指令输入投影是独立的 Conversation Definition，在通用命令结果 Node 之前构建 `command-input` Chat Node；它绝不创建 `user/message` 或模型轮次。
 
 </details>
 

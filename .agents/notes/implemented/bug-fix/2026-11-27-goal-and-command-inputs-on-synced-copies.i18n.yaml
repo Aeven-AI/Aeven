@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-27-goal-and-command-inputs-on-synced-copies.md
+2026-11-27-goal-and-command-inputs-on-synced-copies.md: f5dac5301279332723447b1dca842365d5333c61
+2026-11-27-goal-and-command-inputs-on-synced-copies.zh.md: c7630f868f960f88e7a14cf619dd832eb878d7a7

@@ -62,13 +62,16 @@ interface LiveState {
 /** Commands namespace, captured where `remote.commands` is injected. */
 type CommandsRemote = Context['remote']['commands']
 
+/** Session namespace, captured where `remote.session` is injected; it runs command lines. */
+type SessionRemote = Context['remote']['session']
+
 /** Command surface: session-keyed directory + '/' source + contribution registry + per-session popups. */
 export class CommandUiRuntime extends Service implements CommandUiContract {
-  static inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands']
+  static inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands', 'remote.session']
 
   private readonly directory: CommandDirectory
   /** Resolved on this fiber. Callers that only hold `commandUi` do not inject it. */
-  private readonly commandsRemote: CommandsRemote
+  private readonly sessionRemote: SessionRemote
   private readonly live: LiveState = { contributions: new Map(), decorations: new Map(), popups: new Map() }
   /** `command`-namespace translator (composer refusal notices). */
   private readonly t: TranslateNS<'command'>
@@ -83,7 +86,9 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     if (locale === undefined) throw new Error('ui-commands: locale service unavailable')
     const commandsRemote = ctx.get('remote.commands') as CommandsRemote | undefined
     if (commandsRemote === undefined) throw new Error('ui-commands: commands remote unavailable')
-    this.commandsRemote = commandsRemote
+    const sessionRemote = ctx.get('remote.session') as SessionRemote | undefined
+    if (sessionRemote === undefined) throw new Error('ui-commands: session remote unavailable')
+    this.sessionRemote = sessionRemote
     this.t = locale.bind('command')
     this.directory = new CommandDirectory(async (sessionId) => {
       if (this.sessions().subagentAddress(sessionId) !== undefined) return []
@@ -397,7 +402,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     this.popupFor(actx).open(name, ui, session, segment, anchor, placement)
   }
 
-  /** Build the leadingInput claim: token `/name ` + the command.execute submit transaction. */
+  /** Build the leadingInput claim: token `/name ` + the session.command submit transaction. */
   private leadingClaim(desc: CommandDescriptor, session: ClientSessionContext): CommandClaim {
     const token = `/${desc.name} `
     return {
@@ -409,7 +414,7 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
   }
 
   /**
-   * The command.execute transaction, addressed to the session's agent — pure
+   * The session.command transaction, addressed to the session's agent — pure
    * admission semantics. An unmatched line reports an error outcome (the
    * composer's immediate admission feedback); an admitted command reports
    * plain success regardless of its handler outcome, because the host
@@ -424,14 +429,17 @@ export class CommandUiRuntime extends Service implements CommandUiContract {
     line: string,
     images: readonly SubmitImageAttachment[] = [],
   ): Promise<SubmitOutcome> {
-    const result = await this.commandsRemote.execute(session.sessionId, line, images)
-    if (!result.ok) throw new Error(`command.execute failed: ${result.error.code}: ${result.error.message}`)
-    if (result.value === undefined) return { kind: 'error', text: `unknown or malformed command: ${line}` }
-    this.notifyExecuted(session.sessionId, submittedCommandName(line), result.value.result)
+    const result = await this.sessionRemote.command({ sessionId: session.sessionId, line, images })
+    if (!result.ok) throw new Error(`session.command failed: ${result.error.code}: ${result.error.message}`)
+    const { outcome } = result.value
+    if (outcome.kind === 'unmatched') return { kind: 'error', text: `unknown or malformed command: ${line}` }
+    // The device that writes the Session runs a forwarded line; its logged lifecycle renders the outcome.
+    if (outcome.kind === 'forwarded') return { kind: 'success' }
+    this.notifyExecuted(session.sessionId, submittedCommandName(line), outcome.execution.result)
     // An image-carrying submission consumed its images only on handler
     // success; an error outcome keeps draft and images in the composer.
-    if (images.length > 0 && result.value.result.kind === 'error') {
-      return { kind: 'error', text: result.value.result.text }
+    if (images.length > 0 && outcome.execution.result.kind === 'error') {
+      return { kind: 'error', text: outcome.execution.result.text }
     }
     return { kind: 'success' }
   }
