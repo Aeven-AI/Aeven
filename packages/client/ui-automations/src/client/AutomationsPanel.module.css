@@ -33,7 +33,7 @@
 
 /* The view switcher's row sticks on its resting line, as the Inspiration pills do, and spans only the pills so the
    lists stay clickable beside them. */
-.bar:has(> .tabs) {
+.tabsBar {
   position: sticky;
   top: 53px;
   z-index: 5;
