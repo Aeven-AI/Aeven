@@ -30,7 +30,7 @@ const NOT_YET = 'The user has not finished adding the Aeven extension to their b
 /** What the model is told when the reader continues the conversation in the desktop app instead. */
 const OPENED_DESKTOP = 'The user is continuing this conversation in the Aeven desktop app, which has its own browser beside the conversation. End your turn now with one short sentence; the user continues from the desktop app.'
 /** What the model is told when the reader's browser cannot run the extension. */
-const UNSUPPORTED = "The user's browser cannot run the Aeven extension: only Chrome, Edge, Brave, and other Chromium browsers on a computer can. No browser is available in this session. Tell the user to open Aeven in one of those browsers or to use the Aeven desktop app, and end your turn."
+const UNSUPPORTED = "The user's browser cannot run the Aeven extension: only Chrome, Edge, Brave, and other Chromium browsers on a computer can, so no browser is available in this session. What needs a browser cannot be had another way: video captions and transcripts, signed-in pages, and pages a script renders come only from a real browser, and caption endpoints, video mirrors, transcript sites, and fetch proxies refuse automated requests, so do not try them. Call offer_desktop with reason browser if you have it, tell the user in one sentence that the Aeven desktop app or Aeven in a Chromium browser on a computer can do this, and end your turn."
 
 /** The prompt's state; one prompt serves the page. */
 export type ExtensionPromptState =
