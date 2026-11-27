@@ -347,6 +347,8 @@ function createWindow(preload: string): BrowserWindow {
       // guest outside the browser partition and fixes the rest of its
       // preferences in this process, where the renderer cannot reach them.
       webviewTag: true,
+      // macOS rubber-band overscroll; other platforms ignore it.
+      scrollBounce: true,
     },
   })
   hardenBrowserGuests(window.webContents)

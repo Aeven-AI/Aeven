@@ -505,42 +505,44 @@ export function ConversationRoot({
         active={loaderActive}
         label={t('content.loading')}
       />
-      {/* One scroller for the whole column. Header, transcript and composer are
-          all its children, so each is laid out inside the same content box and
-          the three centre on one axis by construction, with nothing to
-          compensate. The bar is hidden (ui-theme's `no-scrollbar`), so no
-          gutter is reserved either; the reservation that used to align them
-          needed `scrollbar-gutter`, which the iOS/Safari 14.5 baseline bans
+      {/* The navigation band is resident, like the composer: the bar, its
+          blur background, and the right-aligned utilities row belong to the
+          column rather than to a Session, so a reader sees the same chrome —
+          the account avatar among it — whether or not one is open. Only the
+          Session header's own content (crumbs, View tabs, Session actions) is
+          gated on a Session. It lies over the scroller rather than inside it,
+          so the transcript scrolls under it and an overscroll bounce leaves
+          it in place. */}
+      <header
+        className={css.header}
+        data-nav-fold={toggleSidebar !== undefined || undefined}
+        data-sidebar-open={!sidebarCollapsed || undefined}
+      >
+        <div className={css.navBackground} aria-hidden="true">
+          <div className={css.navFade} />
+        </div>
+        {toggleSidebar === undefined ? null : (
+          <NavFold
+            label={t(sidebarCollapsed ? 'nav.open' : 'nav.close')}
+            expanded={!sidebarCollapsed}
+            onToggle={toggleSidebar}
+          />
+        )}
+        {/* A start page, such as Bots, takes the Session's place, so the Session's own
+            header content (its options menu, lineage, actions) gives way with it. */}
+        {sessionId === undefined || startPage ? null : renderSlot('conversation.session.header', {})}
+        <div className={css.navigationUtilities}>
+          {renderSlot('conversation.navigation.utilities', {})}
+        </div>
+      </header>
+      {/* One scroller for the column. Transcript and composer are both its
+          children, so they are laid out inside the same content box and centre
+          on one axis by construction. The bar is hidden (ui-theme's
+          `no-scrollbar`), so no gutter is reserved and the header above spans
+          the same box; reserving one would need `scrollbar-gutter`, which the
+          iOS/Safari 14.5 baseline bans
           ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
       <div ref={scrollRef} className={clsx(css.scrollBody, 'no-scrollbar')} data-conversation-scroll="">
-        {/* The navigation band is resident, like the composer below it: the
-            bar, its blur background, and the right-aligned utilities row
-            belong to the column rather than to a Session, so a reader sees the
-            same chrome — the account avatar among it — whether or not one is
-            open. Only the Session header's own content (crumbs, View tabs,
-            Session actions) is gated on a Session. */}
-        <header
-          className={css.header}
-          data-nav-fold={toggleSidebar !== undefined || undefined}
-          data-sidebar-open={!sidebarCollapsed || undefined}
-        >
-          <div className={css.navBackground} aria-hidden="true">
-            <div className={css.navFade} />
-          </div>
-          {toggleSidebar === undefined ? null : (
-            <NavFold
-              label={t(sidebarCollapsed ? 'nav.open' : 'nav.close')}
-              expanded={!sidebarCollapsed}
-              onToggle={toggleSidebar}
-            />
-          )}
-          {/* A start page, such as Bots, takes the Session's place, so the Session's own
-              header content (its options menu, lineage, actions) gives way with it. */}
-          {sessionId === undefined || startPage ? null : renderSlot('conversation.session.header', {})}
-          <div className={css.navigationUtilities}>
-            {renderSlot('conversation.navigation.utilities', {})}
-          </div>
-        </header>
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
         {startPage

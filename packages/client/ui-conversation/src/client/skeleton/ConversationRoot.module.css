@@ -70,24 +70,23 @@
   );
 }
 
-/* Aeven `.navigation`: a 56px bar the transcript scrolls underneath. Sticky
-   inside the scroller, so it is laid out in the same content box as the
-   transcript and the composer and the three share one axis whatever the
-   scrollbar takes — the alignment this structure exists for.
+/* Aeven `.navigation`: a 56px bar the transcript scrolls underneath. It lies
+   over the scroller, against this root, rather than inside it: a sticky bar in
+   the scroller rides the macOS overscroll bounce with the transcript, while
+   this one holds still like the frame's corner controls. The scroller reserves
+   no gutter (`no-scrollbar`), so the bar spans the same box as the transcript
+   and the composer and the three share one axis.
 
-   It occupies flow rather than overlaying, so the transcript needs no
-   compensating top inset. z-index 30 sits below the sidebar (50), which is how
-   the sidebar column paints over this bar as it slides. `margin-bottom` pulls
-   the content up under the bar by its own height, keeping Aeven's scroll-under
-   look without taking the box out of flow (an out-of-flow box would leave the
-   scroller's content box, which is what the misalignment came from). */
+   z-index 30 sits below the sidebar (50), which is how the sidebar column
+   paints over this bar as it slides. */
 .header {
   display: flex;
-  position: sticky;
+  position: absolute;
   top: 0;
+  right: 0;
+  left: 0;
   z-index: 30;
   height: var(--avn-session-header-height);
-  margin-bottom: calc(-1 * var(--avn-session-header-height));
   align-items: center;
   justify-content: flex-end;
   box-sizing: border-box;
@@ -101,8 +100,6 @@
   transition:
     padding-right var(--dsw-aeven-rightbar-transition-duration)
       var(--dsw-aeven-rightbar-transition-timing);
-  /* Fixed band: it takes no share of the column and never shrinks. */
-  flex: none;
 }
 
 /* The band's leading seat, holding the left column's fold control at the bar's
@@ -251,8 +248,8 @@
 }
 
 .titleRow {
-  /* Laid over the bar inside its page insets (the header is sticky, so it is
-     this row's containing block), which puts the row's origin where the fold
+  /* Laid over the bar inside its page insets (the positioned header is this
+     row's containing block), which puts the row's origin where the fold
      control stands. It passes pointer events through, so the corner utilities
      under it stay reachable. */
   position: absolute;
@@ -432,7 +429,7 @@
 
 .viewArea {
   display: flex;
-  /* Grow into the space the header and the seat leave, and never shrink: a
+  /* Grow into the space the seat leaves, and never shrink: a
      shrunk area would squash the transcript instead of scrolling it. */
   flex: 1 0 auto;
   flex-direction: column;
@@ -688,7 +685,7 @@
   overflow-y: auto;
   /* A column, so the composer's seat lands on the scroller's floor by layout
      instead of by a subtracted height budget: the transcript grows into what the
-     header and the seat leave, at any seat height. A seat-tall constant cannot
+     seat leaves, at any seat height. A seat-tall constant cannot
      track that — the empty hero's seat carries a workspace chip the first message
      removes, and the difference left the card floating above its 24px inset. */
   display: flex;
@@ -717,9 +714,9 @@
 }
 
 .root[data-phase="active"] .composerSeat {
-  /* Stuck to the scroller's floor, in the same content box as the transcript
-     and the header: that shared box is what puts all three on one axis without
-     reserving a gutter. Wheel over the footer moves the flow for free, since
+  /* Stuck to the scroller's floor, in the same content box as the transcript:
+     that shared box is what puts both on one axis without reserving a
+     gutter. Wheel over the footer moves the flow for free, since
      the footer is part of the scrolling surface.
 
      Above markdown CodeBlock sticky banners (z-index 6) so the footer never

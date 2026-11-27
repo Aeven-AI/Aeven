@@ -31,6 +31,15 @@
   margin-bottom: 32px;
 }
 
+/* The view switcher's row sticks on its resting line, as the Inspiration pills do, and spans only the pills so the
+   lists stay clickable beside them. */
+.bar:has(> .tabs) {
+  position: sticky;
+  top: 53px;
+  z-index: 5;
+  align-self: flex-start;
+}
+
 .bar .headerAction {
   height: 30px;
   padding: 0 12px;
@@ -39,8 +48,8 @@
   line-height: 1.875rem;
 }
 
-/* View switcher, sized to the row: 30px items that fill their own track, the
-   selected one the surface colour again. */
+/* View switcher, sized to the row: 30px pills on one bare track, the selected one the surface colour and the
+   others the page background at 80% with a blur, as on the Inspiration page. */
 .tabs {
   box-sizing: border-box;
   display: inline-flex;
@@ -48,7 +57,6 @@
   gap: 8px;
   height: 30px;
   border-radius: 15px;
-  background: var(--dsw-alias-bg-module-platform);
 }
 
 .tab {
@@ -59,8 +67,9 @@
   padding: 0 12px;
   border: 0;
   border-radius: 15px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
+  background-color: rgb(from var(--dsw-alias-bg-base) r g b / 0.8);
+  backdrop-filter: blur(2px);
+  color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 0.875rem;
   line-height: 1.875rem;

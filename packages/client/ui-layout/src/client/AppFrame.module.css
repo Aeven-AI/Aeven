@@ -429,18 +429,18 @@
    of its own, wherever it renders. Outside the band the declaration has no
    effect.
 
-   The conversation's sticky header sits inside its own scroller
-   (ui-conversation `[data-conversation-scroll]`), so transcript rows scroll up
-   beneath it into the band. The window ignores paint order, so a covered row
-   would still punch its hole and kill dragging across the header; everything
-   in that scroller outside its header is therefore no hole. */
+   The conversation's header lies over its scroller (ui-conversation
+   `[data-conversation-scroll]`), so transcript rows scroll up beneath it into
+   the band. The window ignores paint order, so a covered row would still punch
+   its hole and kill dragging across the header; everything in that scroller is
+   therefore no hole. */
 :global(html[data-avn-traffic-lights]) :global(:is(
   button, input, textarea, select, a[href], label, summary, iframe, webview,
   [contenteditable]:not([contenteditable='false']),
   [role='button'], [role='tab'], [role='link'], [role='menuitem'], [role='option'],
   [role='switch'], [role='checkbox'], [role='radio'], [role='slider'], [role='combobox'],
   [role='separator'][tabindex], [draggable='true']
-):not([data-conversation-scroll] > :not(header) *)),
+):not([data-conversation-scroll] *)),
 :global(html[data-avn-traffic-lights]) .handle {
   -webkit-app-region: no-drag;
 }
