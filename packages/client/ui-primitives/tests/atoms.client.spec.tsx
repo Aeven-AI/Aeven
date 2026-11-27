@@ -454,11 +454,9 @@ describe('ConnectionIndicator', () => {
     const reconnect = vi.fn()
     const labels = {
       disconnectedLabel: 'Disconnected',
-      reconnectLabel: 'Reconnect',
       connectingLabel: 'Connecting',
       recoveredLabel: 'Connected',
       reconnectActionLabel: 'Disconnected, reconnect now',
-      restartActionLabel: 'Connecting, restart now',
       dismissLabel: 'Close',
       onReconnect: reconnect,
       onDismiss: vi.fn(),
@@ -473,20 +471,24 @@ describe('ConnectionIndicator', () => {
     // action's own label.
     const toast = screen.getByRole('alert')
     expect(toast.textContent).toContain('Disconnected')
-    expect(toast.textContent).toContain('Reconnect')
     expect(toast.querySelector('[title]')).toBeNull()
     const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
-    expect(indicator.textContent).toBe('Reconnect')
+    // The reconnect action is an icon button; its name comes from the action label.
+    expect(indicator.textContent).toBe('')
+    expect(indicator.querySelector('svg')).toBeTruthy()
     expect(indicator.hasAttribute('title')).toBe(false)
-    // The state glyph sits in the toast's gutter, not in the action.
-    expect(toast.querySelector('svg')).toBeTruthy()
+    // The outage shows no leading glyph; its text opens the toast.
+    expect(toast.firstElementChild?.textContent).toBe('Disconnected')
     fireEvent.click(indicator)
     expect(reconnect).toHaveBeenCalledOnce()
 
     rerender(<ConnectionIndicator state="connecting" {...labels} />)
-    // The attempt dots ride the status text, not the action.
-    expect(screen.getByRole('alert').textContent).toContain('Connecting...')
-    expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent).toBe('Reconnect')
+    // A retry shows the loading spinner in the glyph disc and plain status text.
+    expect(screen.getByRole('alert').textContent).toContain('Connecting')
+    expect(screen.getByRole('alert').textContent).not.toContain('...')
+    // A running attempt offers no reconnect; only the dismiss remains.
+    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
 
     rerender(<ConnectionIndicator state="recovered" {...labels} />)
     // A recovered toast offers no reconnect and keeps only its dismiss.

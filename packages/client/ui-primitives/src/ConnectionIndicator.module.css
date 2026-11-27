@@ -23,10 +23,11 @@
   animation: avn-connection-toast-in 160ms ease-out;
 }
 
-/* The state glyph and the dismiss control sit in one 30px disc each, filled
-   with the base surface so the disc inverts against the glass card in both
-   palettes. */
+/* The state glyph, the reconnect button, and the dismiss button sit in one
+   30px disc each, filled with the base surface so the disc inverts against the
+   glass card in both palettes. */
 .icon,
+.action,
 .dismiss {
   flex: none;
   display: grid;
@@ -35,10 +36,6 @@
   height: 30px;
   border-radius: 50%;
   background: var(--dsw-alias-bg-base);
-}
-
-.icon {
-  color: var(--dsw-alias-state-warn-label);
 }
 
 .success .icon {
@@ -51,7 +48,13 @@
   text-overflow: ellipsis;
 }
 
-/* Trailing controls stay flush with the toast's end when the label stops
+/* The outage toast has no leading glyph; this inset keeps its text off the
+   pill's rounded end. */
+.label:first-child {
+  padding-left: 8px;
+}
+
+/* Trailing buttons stay flush with the toast's end when the label stops
    short of the width ceiling. */
 .end {
   display: flex;
@@ -69,51 +72,28 @@
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }
 
-.action {
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 15px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font-size: 0.875rem;
-  line-height: 1;
-}
-
-.action:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-.action:focus-visible {
-  outline: 2px solid var(--dsw-alias-label-primary);
-  outline-offset: 2px;
-}
-
+.action,
 .dismiss {
   padding: 0;
   color: var(--dsw-alias-label-primary);
 }
 
+/* The lucide glyph is sized by its use site; 16px of its padded 24-unit canvas
+   matches the optical size of the 14px close glyph. */
+.action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action:hover,
 .dismiss:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+.action:focus-visible,
 .dismiss:focus-visible {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
-}
-
-.dots {
-  display: inline-block;
-  width: 1.5em;
-  text-align: left;
-}
-
-.secondDot {
-  animation: reveal-second-dot 1.5s step-end infinite;
-}
-
-.thirdDot {
-  animation: reveal-third-dot 1.5s step-end infinite;
 }
 
 @keyframes avn-connection-toast-in {
@@ -128,20 +108,8 @@
   }
 }
 
-@keyframes reveal-second-dot {
-  0%, 33.32% { visibility: hidden; }
-  33.33%, 100% { visibility: visible; }
-}
-
-@keyframes reveal-third-dot {
-  0%, 66.65% { visibility: hidden; }
-  66.66%, 100% { visibility: visible; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .toast,
-  .secondDot,
-  .thirdDot {
+  .toast {
     animation: none;
   }
 }
