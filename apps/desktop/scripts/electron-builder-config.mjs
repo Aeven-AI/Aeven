@@ -66,7 +66,7 @@ export function createElectronBuilderConfig(
     // An unsigned build shares the artifacts directory, so its name says so: it cannot be mistaken for a release
     // installer, and the upload plan, which looks up the release names exactly, never picks one up.
     artifactName: `aeven-\${version}-\${os}-\${arch}${storePackage ? '-store' : unsigned ? '-unsigned' : ''}.\${ext}`,
-    // The Store pass reads its manifest template and tile images from installer/appx.
+    // The Store pass reads its tile images from installer/appx.
     directories: { output: buildPaths.artifacts, ...storePackage ? { buildResources: 'installer' } : {} },
     asar: true,
     // The shell's file locks load koffi's per-platform `.node` binary, which the dynamic loader cannot read from an archive.
@@ -144,14 +144,12 @@ export function createElectronBuilderConfig(
       backgroundColor: 'transparent',
       // The client's locales (`LOCALE_IDS` in @aeven/client-locale); Partner Center lists the Store page in these.
       languages: ['en-US', 'zh-CN', 'es-ES'],
-      // The template excludes only the app's %APPDATA%\Aeven folder and its native-messaging keys under HKCU from
-      // write virtualization, so a browser reads the app's registration and an NSIS install shares its profile.
-      customManifestPath: 'appx/AppxManifest.xml',
-      // Windows 11 is the first release that honours directory and key exclusions; Windows 10 offers only
-      // whole-package opt-outs.
-      minVersion: '10.0.22000.0',
+      // electron-builder's own manifest template: Windows virtualizes every write the app makes to AppData and HKCU,
+      // and no restricted capability beyond runFullTrust is declared.
+      // Windows 10 1809, the oldest Windows 10 release Microsoft still services in its LTSC editions.
+      minVersion: '10.0.17763.0',
       maxVersionTested: '10.0.26100.0',
-      capabilities: ['runFullTrust', 'unvirtualizedResources', 'location', 'microphone', 'webcam'],
+      capabilities: ['runFullTrust', 'location', 'microphone', 'webcam'],
     },
     linux: {
       // Linux launchers draw icons unmasked on a padded grid, which the inset macOS tile matches. Each
@@ -172,8 +170,8 @@ export function createElectronBuilderConfig(
     },
     // electron-builder 26's default AppImage runtime loads the system libfuse2, which Ubuntu 22.04 and
     // later no longer install by default; the static runtime also starts where only FUSE 3 exists.
-    // Without a winCodeSign toolset electron-builder packs AppX with the legacy Windows 10 1809 kit, whose makeappx
-    // predates the manifest's Windows 11 virtualization schema; 1.1.0 carries the Windows SDK 10.0.26100 kit.
+    // Without a winCodeSign toolset electron-builder packs AppX with the legacy Windows 10 1809 kit; 1.1.0 carries the
+    // Windows SDK 10.0.26100 kit, the release maxVersionTested names.
     toolsets: { appimage: '1.0.3', ...storePackage ? { winCodeSign: '1.1.0' } : {} },
     deb: {
       // Electron's runtime libraries, ALSA included for microphone dictation. Debian 13 and Ubuntu 24.04
