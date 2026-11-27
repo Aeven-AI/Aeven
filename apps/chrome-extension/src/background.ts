@@ -10,7 +10,7 @@
  * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
  * and bookmarks are read on request; the app asks the user before it requests them.
  * Two kinds of connection carry the same messages: the desktop app's
- * WebSocket, and an Aeven web page (`externally_connectable`), which is how hosted
+ * WebSocket (or an older app's native host), and an Aeven web page (`externally_connectable`), which is how hosted
  * Aeven reaches this browser; localhost pages may connect only to an unpacked
  * development install. Messages are `{ id, method, params }` requests answered on
  * the asking connection with `{ id, result }` or `{ id, error }`, and
@@ -23,6 +23,11 @@
  * listens on the port without the secret gets no answer from this browser. The
  * secret arrives in the fragment of `connect.html`, which only a program running
  * on this computer can open, because no web page may navigate to it.
+ *
+ * When no port answers, the worker connects through the native messaging host
+ * (`HOST`) that desktop apps before the WebSocket registered, so this extension
+ * also works with those apps. Chrome disconnects that port at once when no app
+ * registered the host, and the host disconnects when its app is not running.
  */
 
 import { automate, ChromeTab, prepareTab, type BrowserAutomationInput } from '@aeven/browser-engine'
@@ -32,6 +37,8 @@ import { automate, ChromeTab, prepareTab, type BrowserAutomationInput } from '@a
  * order (`EXTENSION_PORTS` in apps/desktop/src/browser-extension.ts).
  */
 const APP_PORTS = [47820, 47821, 47822]
+/** The native messaging host desktop apps before the WebSocket register; the worker falls back to it. */
+const HOST = 'io.aeven.browser'
 /** The request and event set this extension speaks; the app refuses an older one. */
 const PROTOCOL = 3
 /** Title of the tab group the agent's tabs live in. */
@@ -59,8 +66,8 @@ interface Connection {
   listen(listener: (message: unknown) => void): void
 }
 
-/** The desktop app's authenticated WebSocket. */
-let app: WebSocket | undefined
+/** The connection to the desktop app: its authenticated WebSocket, or an older app's native host. */
+let app: { send(message: unknown): void } | undefined
 /** Whether a connection attempt is running. */
 let connecting = false
 /** Whether a pairing arrived during the running attempt, which then tries again at once. */
@@ -101,7 +108,7 @@ function saveTabs(): void {
 
 /** Send one notification to every connection. */
 function post(message: unknown): void {
-  app?.send(JSON.stringify(message))
+  app?.send(message)
   for (const page of pages) page.postMessage(message)
 }
 
@@ -255,7 +262,8 @@ function adopt(socket: WebSocket, early: unknown[]): void {
     retry()
     return
   }
-  app = socket
+  const link = { send: (message: unknown) => { socket.send(JSON.stringify(message)) } }
+  app = link
   retryMs = 1000
   let listener: ((message: unknown) => void) | undefined
   socket.onmessage = (event) => { listener?.(readFrame(event.data)) }
@@ -263,14 +271,35 @@ function adopt(socket: WebSocket, early: unknown[]): void {
   for (const message of early) listener?.(message)
   keepalive = setInterval(() => { socket.send(JSON.stringify({ event: 'ping' })) }, KEEPALIVE_MS)
   socket.onclose = () => {
-    if (app !== socket) return
+    if (app !== link) return
     app = undefined
     clearInterval(keepalive)
     // Web pages may still drive the tabs; with none, nothing does.
     if (pages.size === 0) detachAll()
     retry()
   }
-  void info().then((about) => { if (app === socket) socket.send(JSON.stringify({ event: 'hello', ...about })) })
+  void info().then((about) => { if (app === link) link.send({ event: 'hello', ...about }) })
+}
+
+/**
+ * Serve an older desktop app through the native messaging host it registered,
+ * until the port disconnects; the worker then tries the WebSocket again first.
+ */
+function connectNative(): void {
+  const port = chrome.runtime.connectNative(HOST)
+  const link = { send: (message: unknown) => { port.postMessage(message) } }
+  app = link
+  serve(portConnection(port))
+  port.onDisconnect.addListener(() => {
+    // Reading the error marks Chrome's "host not found" as handled; a missing host is the expected case with a newer app.
+    void chrome.runtime.lastError
+    if (app !== link) return
+    app = undefined
+    // Web pages may still drive the tabs; with none, nothing does.
+    if (pages.size === 0) detachAll()
+    retry()
+  })
+  void info().then((about) => { if (app === link) link.send({ event: 'hello', ...about }) })
 }
 
 /** Try the app again after the backoff, which doubles up to `MAX_RETRY_MS`. */
@@ -280,7 +309,7 @@ function retry(): void {
   retryMs = Math.min(retryMs * 2, MAX_RETRY_MS)
 }
 
-/** Connect to the app, trying each port in order, and retry with backoff while none answers. */
+/** Connect to the app, trying each port in order and then an older app's native host, and retry with backoff. */
 function connect(): void {
   if (app !== undefined || connecting) return
   connecting = true
@@ -304,7 +333,7 @@ function connect(): void {
       connect()
       return
     }
-    retry()
+    connectNative()
   })
 }
 

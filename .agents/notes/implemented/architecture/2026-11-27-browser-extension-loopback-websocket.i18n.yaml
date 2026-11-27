@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-27-browser-extension-loopback-websocket.md
-2026-11-27-browser-extension-loopback-websocket.md: 2a4d8838ab0ee635306616d976b84e02ca34a23e
-2026-11-27-browser-extension-loopback-websocket.zh.md: 29bdca6697432e934080123bc03867813b47bbaa
+2026-11-27-browser-extension-loopback-websocket.md: cee521f993f9087e6a20d791e9d463fd0a81a701
+2026-11-27-browser-extension-loopback-websocket.zh.md: b668437bf6f9166b84488cfa1aa25013d068c174

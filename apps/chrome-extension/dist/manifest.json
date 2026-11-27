@@ -28,6 +28,7 @@
     "tabGroups",
     "history",
     "bookmarks",
+    "nativeMessaging",
     "storage",
     "alarms"
   ],

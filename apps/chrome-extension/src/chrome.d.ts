@@ -15,6 +15,7 @@ declare namespace chrome {
     function sendMessage(message: unknown): Promise<unknown>
     const onMessage: { addListener(callback: (message: unknown, sender: MessageSender) => void): void }
     const onConnectExternal: { addListener(callback: (port: Port) => void): void }
+    function connectNative(application: string): Port
     function getManifest(): { version: string }
     function getURL(path: string): string
     const lastError: { message?: string } | undefined

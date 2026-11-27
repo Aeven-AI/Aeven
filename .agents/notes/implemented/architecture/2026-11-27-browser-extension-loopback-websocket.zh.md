@@ -10,7 +10,7 @@ Aeven 浏览器扩展过去通过 Chrome 原生消息主机连接桌面应用。
 
 ## 决定
 
-桌面应用在 `127.0.0.1` 上为扩展提供一个 WebSocket（`apps/desktop/src/browser-extension.ts` 中的 `serveExtensions`，基于 `ws` 包），使用 `EXTENSION_PORTS`（47820、47821、47822）中第一个空闲的端口；扩展的 worker 按相同顺序尝试同一列表（`apps/chrome-extension/src/background.ts` 中的 `APP_PORTS`）。两侧都不再使用原生消息，扩展去掉了 `nativeMessaging` 权限。请求和事件消息不变，每个文本帧承载一条 JSON 消息。
+桌面应用在 `127.0.0.1` 上为扩展提供一个 WebSocket（`apps/desktop/src/browser-extension.ts` 中的 `serveExtensions`，基于 `ws` 包），使用 `EXTENSION_PORTS`（47820、47821、47822）中第一个空闲的端口；扩展的 worker 按相同顺序尝试同一列表（`apps/chrome-extension/src/background.ts` 中的 `APP_PORTS`）。应用不再注册原生消息主机。扩展保留 `nativeMessaging` 权限，并在没有端口应答时，通过此变更之前的桌面应用注册的 `io.aeven.browser` 主机连接，因此同一个扩展版本既能配合旧应用也能配合新应用；面对较新的应用时，Chrome 找不到主机并立即断开，worker 在退避之后再次尝试这些端口。请求和事件消息不变，每个文本帧承载一条 JSON 消息。
 
 服务器只接受 `EXTENSION_IDS` 的 `chrome-extension://` 来源。之后双方证明各自持有一个 32 字节的配对密钥，应用把它保存在 `$AVN_HOME/desktop/browser-extension-secret`（权限 0600），扩展把它保存在 `chrome.storage.local`。应用发送一个随机挑战；扩展用 `extension:<port>:<challenge>` 的 HMAC-SHA256 作答，并附上自己的挑战；应用再用 `app:<port>:<对方的挑战>` 的 HMAC-SHA256 作答。只有到这一步，应用才接纳该套接字，扩展才为它服务。每个证明都包含端口，因此某个端口上的程序无法把这次交换转发给另一个端口上的应用。
 
@@ -38,7 +38,7 @@ Store 包使用 electron-builder 自带的清单模板，除 `runFullTrust` 外�
 
 - Store 包重新可以安装在 Windows 10 上，其提交也不再需要为功能作说明。
 - 在 Store 版本中，对 AppData 和 `HKCU` 的所有写入都落在包的私有存储中，包括代理的工具在那里写入的内容：代理之后的命令能看到，其他程序看不到，卸载该包时会被删除。Store 安装和 NSIS 安装各自保留配置，并可同时运行；后启动的那个在下一个端口上为扩展提供服务。
-- 扩展和应用必须一起发布：此变更之前的扩展找不到主机，此扩展也找不到此变更之前的应用。Chrome Web Store 的更新（扩展 0.3.38）应在删除主机的桌面版本发布之前上线。
+- 扩展 0.3.38 能配合此变更之前和之后的桌面应用，因此可以早于桌面版本发布。此前的扩展（0.3.37 及更早）在 Chrome 更新它之前，无法连接包含此变更的桌面应用。
 - 当扩展没有密钥或持有过期密钥时，配对会在每个浏览器、每次应用运行中打开一次页面。页面会在浏览器启动时使用的配置文件中打开，因此只装在其他配置文件中的扩展要等代理下次启动该浏览器时才会配对；如果那个配置文件不是浏览器打开的那个，则永远不会配对。应用不知道如何启动的浏览器，例如 Opera 和 Vivaldi，不会被配对。
 - 浏览器启动程序运行期间，密钥会出现在它的命令行中。Linux 允许其他账户读取命令行，除非 `/proc` 以 `hidepid` 方式挂载。
 - Chrome 的本地网络访问限制从 Chrome 147 起管控指向回环地址的 WebSocket，其文档没有提到扩展。在 macOS 上的 Chrome 158 中，扩展的 service worker 无需权限提示即可连接；如果以后的 Chrome 把这些限制用于扩展，连接会在读者授予权限之前中断。
