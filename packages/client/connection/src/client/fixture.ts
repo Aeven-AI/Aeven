@@ -2448,6 +2448,28 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     },
   }
 
+  type FxSessionGoalRequest = {
+    sessionId: SessionId
+    change:
+      | { kind: 'create'; request: { objective: string; maxGoalRounds?: number } }
+      | { kind: 'edit'; ref: FxGoalRef; request: { objective?: string; maxGoalRounds?: number } }
+      | { kind: 'pause' | 'resume' | 'complete' | 'clear'; ref: FxGoalRef }
+  }
+
+  /** Fixture parallel of the Host `session.goal` verb: every change applies on this one device. */
+  const sessionGoal = (
+    { sessionId: id, change }: FxSessionGoalRequest,
+  ): RpcResult<{ delivery: 'applied'; ref: FxGoalRef }> => {
+    const result: RpcResult<FxGoalRef | { ref: FxGoalRef }> = change.kind === 'create'
+      ? goalRemotes.create(id, change.request)
+      : change.kind === 'edit'
+        ? goalRemotes.edit(id, change.ref, change.request)
+        : goalRemotes[change.kind](id, change.ref)
+    if (!result.ok) return result
+    const ref = 'ref' in result.value ? result.value.ref : result.value
+    return { ok: true, value: { delivery: 'applied', ref: { id: ref.id, revision: ref.revision } } }
+  }
+
   /** Resolve one current goal revision for a canonical Remote mutation. */
   function resolveGoal(id: SessionId, ref: FxGoalRef): RpcResult<FxGoalProjection> {
     const missing = requireGoalSession(id)
@@ -3504,28 +3526,26 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
       const request = args.request
       switch (endpoint) {
         case 'commands/list': return Promise.resolve(commandRemotes.list(sessionId))
-        case 'commands/execute': return Promise.resolve(commandRemotes.execute(sessionId, args.line as string, args.images ?? []))
         case 'fileReferences/list': return Promise.resolve(referenceRemotes.files(sessionId, args.query ?? ''))
         case 'sessionReferenceResolver/candidates': return Promise.resolve(referenceRemotes.sessions(sessionId, args.query ?? ''))
         case 'directoryPicker/pick': return Promise.resolve(directoryPickerRemotes.pick())
         case 'directoryPicker/list': return Promise.resolve(directoryPickerRemotes.list(args.path))
         case 'directoryPicker/createDirectory':
           return Promise.resolve(directoryPickerRemotes.createDirectory(args.path ?? '', args.name ?? ''))
-        case 'goals/create': return Promise.resolve(goalRemotes.create(sessionId, {
-          objective: (request as { objective?: string } | undefined)?.objective as string,
-          ...(request as { maxGoalRounds?: number } | undefined)?.maxGoalRounds === undefined
-            ? {}
-            : { maxGoalRounds: (request as { maxGoalRounds: number }).maxGoalRounds },
-        }))
-        case 'goals/edit': return Promise.resolve(goalRemotes.edit(
-          sessionId,
-          args.ref as FxGoalRef,
-          request as { objective?: string; maxGoalRounds?: number },
-        ))
-        case 'goals/pause': return Promise.resolve(goalRemotes.pause(sessionId, args.ref as FxGoalRef))
-        case 'goals/resume': return Promise.resolve(goalRemotes.resume(sessionId, args.ref as FxGoalRef))
-        case 'goals/complete': return Promise.resolve(goalRemotes.complete(sessionId, args.ref as FxGoalRef))
-        case 'goals/clear': return Promise.resolve(goalRemotes.clear(sessionId, args.ref as FxGoalRef))
+        case 'session/goal': return Promise.resolve(sessionGoal(request as FxSessionGoalRequest))
+        case 'session/command': {
+          const { sessionId: commandSession, line, images } = request as {
+            sessionId: SessionId
+            line: string
+            images: readonly unknown[]
+          }
+          const executed = commandRemotes.execute(commandSession, line, images)
+          if (!executed.ok) return Promise.resolve(executed)
+          return Promise.resolve({
+            ok: true,
+            value: { outcome: executed.value === undefined ? { kind: 'unmatched' } : { kind: 'executed', execution: executed.value } },
+          })
+        }
         case 'agentPresets/list': return Promise.resolve(presetRemotes.list())
         case 'agentPresets/select': return Promise.resolve(presetRemotes.select(sessionId, args.agentPreset as string))
         case 'agentPresets/read': return Promise.resolve(presetRemotes.read(args.agentPreset as string))

@@ -72,7 +72,8 @@
     "@aeven/deque": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "mime-types": "^3.0.2",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@aeven/util-values": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
@@ -107,7 +108,9 @@
     "@aeven/session-handoff": "workspace:^",
     "@aeven/user-questions": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@aeven/working-directory": "workspace:^",
+    "@aeven/goal": "workspace:^",
+    "@aeven/commands": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/jobs": {
@@ -132,6 +135,12 @@
       "optional": true
     },
     "@aeven/user-approval": {
+      "optional": true
+    },
+    "@aeven/goal": {
+      "optional": true
+    },
+    "@aeven/commands": {
       "optional": true
     }
   },
@@ -178,6 +187,7 @@
     "@aeven/session-handoff": "workspace:^",
     "@aeven/user-questions": "workspace:^",
     "@aeven/user-approval": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@aeven/working-directory": "workspace:^",
+    "@aeven/goal": "workspace:^"
   }
 }

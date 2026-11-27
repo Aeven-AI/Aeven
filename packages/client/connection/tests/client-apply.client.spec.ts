@@ -564,36 +564,24 @@ describe('connection client apply', () => {
     }
   })
 
-  it('carries Goal Remotes over the client-only fixture state', async () => {
+  it('carries Session goal changes over the client-only fixture state', async () => {
     ;(globalThis as Win).location = { hostname: 'localhost', search: '?fixture' }
     const handle = await mount()
-    const created = await handle.rpc.call('/api', 'goals/create', {
-      args: { agentId: 'fx-alpha', request: { objective: 'fixture remote' } },
+    const goal = (change: Record<string, unknown>) => handle.rpc.call('/api', 'session/goal', {
+      args: { request: { sessionId: 'fx-alpha', change } },
     })
-    expect(created).toMatchObject({ ok: true, value: { ref: { revision: 1 } } })
+    const created = await goal({ kind: 'create', request: { objective: 'fixture remote' } })
+    expect(created).toMatchObject({ ok: true, value: { delivery: 'applied', ref: { revision: 1 } } })
     if (!created.ok) throw new Error('fixture Goal create failed')
     const ref = (created.value as { ref: { id: string; revision: number } }).ref
-    const edited = await handle.rpc.call('/api', 'goals/edit', {
-      args: { agentId: 'fx-alpha', ref, request: { objective: 'edited fixture remote' } },
-    })
-    expect(edited).toMatchObject({ ok: true, value: { objective: 'edited fixture remote', revision: 2 } })
-    const editedRef = { id: ref.id, revision: 2 }
-    const paused = await handle.rpc.call('/api', 'goals/pause', {
-      args: { agentId: 'fx-alpha', ref: editedRef },
-    })
-    expect(paused).toMatchObject({ ok: true, value: { phase: 'paused', activation: 'disarmed', revision: 3 } })
-    const resumed = await handle.rpc.call('/api', 'goals/resume', {
-      args: { agentId: 'fx-alpha', ref: { id: ref.id, revision: 3 } },
-    })
-    expect(resumed).toMatchObject({ ok: true, value: { phase: 'active', activation: 'armed', revision: 4 } })
-    const completed = await handle.rpc.call('/api', 'goals/complete', {
-      args: { agentId: 'fx-alpha', ref: { id: ref.id, revision: 4 } },
-    })
-    expect(completed).toMatchObject({ ok: true, value: { phase: 'complete', activation: 'disarmed', revision: 5 } })
-    await expect(handle.rpc.call('/api', 'goals/clear', {
-      args: { agentId: 'fx-alpha', ref: { id: ref.id, revision: 5 } },
-    })).resolves.toEqual({ ok: true, value: { id: ref.id, revision: 6 } })
-    await expect(handle.rpc.call('/other', 'goals/create', {})).rejects.toThrow(/channel.*unavailable/)
+    const at = (revision: number) => ({ id: ref.id, revision })
+    await expect(goal({ kind: 'edit', ref, request: { objective: 'edited fixture remote' } }))
+      .resolves.toEqual({ ok: true, value: { delivery: 'applied', ref: at(2) } })
+    await expect(goal({ kind: 'pause', ref: at(2) })).resolves.toEqual({ ok: true, value: { delivery: 'applied', ref: at(3) } })
+    await expect(goal({ kind: 'resume', ref: at(3) })).resolves.toEqual({ ok: true, value: { delivery: 'applied', ref: at(4) } })
+    await expect(goal({ kind: 'complete', ref: at(4) })).resolves.toEqual({ ok: true, value: { delivery: 'applied', ref: at(5) } })
+    await expect(goal({ kind: 'clear', ref: at(5) })).resolves.toEqual({ ok: true, value: { delivery: 'applied', ref: at(6) } })
+    await expect(handle.rpc.call('/other', 'session/goal', {})).rejects.toThrow(/channel.*unavailable/)
     await expect(handle.rpc.call('/api', 'unknown/read', { args: { agentId: 'fx-alpha' } }))
       .rejects.toThrow(/endpoint.*unavailable/)
   })

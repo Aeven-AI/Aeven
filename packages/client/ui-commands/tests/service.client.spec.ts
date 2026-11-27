@@ -77,14 +77,24 @@ async function bench(opts: BenchOptions = {}) {
         return value.commands
       })
     },
-    execute: async (sessionId: SessionId, line: string, images: readonly SubmitImageAttachment[] = []) => {
+  }
+  // Command lines run through the generated Session Remote's `command` verb.
+  const sessionRemote = {
+    command: async (
+      { sessionId, line, images }: { sessionId: SessionId; line: string; images: readonly SubmitImageAttachment[] },
+    ) => {
       executeCalls.push({ sessionId, line, images })
       return await carried(async () => {
         const fallback = (): Promise<ExecuteValue> => Promise.resolve({ matched: true })
         const value = await (opts.execute ?? fallback)({ sessionId, line })
-        return value.matched
-          ? { commandId: value.commandId ?? 'fake-command', result: value.result ?? { kind: 'success' as const } }
-          : undefined
+        return {
+          outcome: value.matched
+            ? {
+              kind: 'executed' as const,
+              execution: { commandId: value.commandId ?? 'fake-command', result: value.result ?? { kind: 'success' as const } },
+            }
+            : { kind: 'unmatched' as const },
+        }
       })
     },
   }
@@ -109,8 +119,9 @@ async function bench(opts: BenchOptions = {}) {
       ? { parentSessionId: sid('parent'), childSessionId: id, mode: 'continuable' as const }
       : undefined,
   })
-  const remote = Object.assign(new TestRemote(ctx), { commands: commandsRemote })
+  const remote = Object.assign(new TestRemote(ctx), { commands: commandsRemote, session: sessionRemote })
   ctx.provide('remote.commands', commandsRemote)
+  ctx.provide('remote.session', sessionRemote)
   const executions: Array<{ sessionId: SessionId; name: string; result: CommandResult }> = []
   ctx.on('command/executed', (sessionId, name, result) => {
     executions.push({ sessionId, name, result })

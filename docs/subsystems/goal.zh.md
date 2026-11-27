@@ -192,7 +192,7 @@ create(agent: Agent, request: CreateGoalRequest): GoalView
  * @param request - at least one replacement field.
  * @returns the edited view.
  */
-@Remote('edit') edit(agent: Agent, ref: GoalRef, request: EditGoalRequest): GoalView
+edit(agent: Agent, ref: GoalRef, request: EditGoalRequest): GoalView
 
 /**
  * Pause an active goal and disarm automatic continuation.
@@ -200,7 +200,7 @@ create(agent: Agent, request: CreateGoalRequest): GoalView
  * @param ref - expected current revision.
  * @returns the paused view.
  */
-@Remote('pause') pause(agent: Agent, ref: GoalRef): GoalView
+pause(agent: Agent, ref: GoalRef): GoalView
 
 /**
  * Resume and arm a stopped goal, or rearm an active goal after a
@@ -209,7 +209,7 @@ create(agent: Agent, request: CreateGoalRequest): GoalView
  * @param ref - expected current revision.
  * @returns the active view.
  */
-@Remote('resume') resume(agent: Agent, ref: GoalRef): GoalView
+resume(agent: Agent, ref: GoalRef): GoalView
 
 /**
  * Mark a current non-complete goal complete and disarm it.
@@ -217,7 +217,7 @@ create(agent: Agent, request: CreateGoalRequest): GoalView
  * @param ref - expected current revision.
  * @returns the completed view.
  */
-@Remote('complete') complete(agent: Agent, ref: GoalRef): GoalView
+complete(agent: Agent, ref: GoalRef): GoalView
 
 /**
  * Mark an active goal blocked and disarm it.
@@ -234,15 +234,7 @@ block(agent: Agent, ref: GoalRef, reason: GoalBlockReason): GoalView
  * @param ref - expected current revision.
  * @returns the tombstone ref whose revision is one past the cleared snapshot.
  */
-@Remote('clear') clear(agent: Agent, ref: GoalRef): GoalRef
-
-/**
- * Create one Goal through the remote boundary.
- * @param agent - exact live Agent resolved from the wire identity.
- * @param request - objective and optional round cap.
- * @returns the created Goal identity.
- */
-@Remote('create') remoteExportCreate(agent: Agent, request: CreateGoalRequest): CreateGoalResult
+clear(agent: Agent, ref: GoalRef): GoalRef
 ```
 
 Types: [Agent](core.zh.md)
