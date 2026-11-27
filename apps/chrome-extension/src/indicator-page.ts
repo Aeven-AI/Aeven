@@ -101,7 +101,7 @@ function showIcon(icon: string): void {
     iconLink.href = icon
     return
   }
-  const head = document.head ?? document.documentElement
+  const head = document.head
   pageIcons = [...document.querySelectorAll('link[rel~="icon"]')].flatMap(link => link.parentNode === null ? [] : [{ link, parent: link.parentNode, next: link.nextSibling }])
   for (const { link } of pageIcons) link.remove()
   iconLink = document.createElement('link')

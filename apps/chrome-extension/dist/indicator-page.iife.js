@@ -1,5 +1,20 @@
+"use strict";
 (function() {
 	//#region src/indicator-page.ts
+	/**
+	* The agent's presence in a tab the Aeven extension drives: a glow around the
+	* viewport in the agent pointer's blue, a status tag along the bottom edge, and
+	* the Æven icon as the tab's icon. The page's title is left alone, since the
+	* browser records it in the history. The extension's worker installs this script
+	* into the page through the debugger and calls `window.__aevenIndicator` while
+	* it controls the tab; nothing here reads the page or handles input, and every
+	* element ignores the pointer.
+	*
+	* Everything is drawn in a closed shadow root with a constructed stylesheet, so
+	* the page's styles cannot reach it and a page's style Content Security Policy
+	* does not block it. The tag's font arrives as bytes (`loadFont`), which a
+	* page's font policy does not block either.
+	*/
 	/** The family name the tag's font is registered under, apart from any the page loads. */
 	const FONT_FAMILY = "Aeven Indicator Sans";
 	/** How long the finished tag stays before everything is removed, in ms. */
@@ -80,7 +95,7 @@
 			iconLink.href = icon;
 			return;
 		}
-		const head = document.head ?? document.documentElement;
+		const head = document.head;
 		pageIcons = [...document.querySelectorAll("link[rel~=\"icon\"]")].flatMap((link) => link.parentNode === null ? [] : [{
 			link,
 			parent: link.parentNode,
