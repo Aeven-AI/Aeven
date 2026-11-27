@@ -46,6 +46,11 @@ class MemoryPersistence {
     return Promise.resolve()
   }
 
+  delete(id: string): Promise<void> {
+    this.logs.delete(id)
+    return Promise.resolve()
+  }
+
   setReplica(id: string, replica: boolean): Promise<void> {
     const log = this.logs.get(id)!
     const { replica: _replica, ...header } = log.header
@@ -284,6 +289,62 @@ describe('session mirror', () => {
     expect(homeB.logs.get('gapped')!.header.replica).toBeUndefined()
     homeB.add('gapped', 1)
     expect(await Promise.all([b.claim('gapped' as never), b.claim('gapped' as never)])).toEqual([{ claimed: true }, { claimed: true }])
+  })
+
+  it('keeps the relay lease when two first claims on one device overlap', async () => {
+    const network = new MemorySyncNetwork()
+    const home = new MemoryPersistence()
+    home.start('overlap', Date.now(), 2)
+    const device = network.device()
+    const a = mirror(device, home).mirror
+    await a.start()
+    // Two inputs arrive together while no claim stands: the second waits behind the first and finds its claim.
+    expect(await Promise.all([a.claim('overlap' as never), a.claim('overlap' as never)])).toEqual([{ claimed: true }, { claimed: true }])
+    expect(network.leases.get('sessions/overlap')?.holder).toBe(device.id)
+    await a.holdRunner('overlap' as never, true)
+    expect(network.leases.get('sessions/overlap')?.holder).toBe(device.id)
+  })
+
+  it('asks a prompt again, marked as resent, when the turn that answered it never reached the account history', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('split', Date.now(), 3)
+    const delivered: Array<{ operation: string; request: unknown }> = []
+    const collect = (_id: string, input: { operation: string; request: unknown }): Promise<void> => {
+      delivered.push(input)
+      return Promise.resolve()
+    }
+    const a = mirror(network.device(), homeA).mirror
+    const deviceB = network.device()
+    const b = new SessionMirror(OWNER, deviceB.asSync(), homeB as never, tuning, vi.fn(), undefined, undefined, collect)
+    mirrors.push(b)
+    await a.start()
+    await b.start()
+    await vi.waitFor(() => { expect(count(homeB, 'split')).toBe(3) })
+    // B answers a prompt while it cannot reach the relay.
+    deviceB.setState('offline')
+    expect(await b.claim('split' as never)).toEqual({ claimed: true })
+    await b.holdRunner('split' as never, true)
+    const prompt = [{ type: 'text', text: 'the runbook is almost done' }]
+    homeB.logs.get('split')!.events.push(
+      { type: 'user/message', seq: 3, time: 0, data: { id: 'm-b', role: 'user', content: prompt, source: { kind: 'user', rpcId: 'r-b', clientTimeZone: 'Europe/Amsterdam' } } } as unknown as SessionEvent,
+      { type: 'assistant/message', seq: 4, time: 0, data: { text: 'noted' } } as unknown as SessionEvent,
+    )
+    homeB.logs.get('split')!.revision++
+    // A runs its own turn at the same position, and the account history accepts it.
+    expect(await a.claim('split' as never)).toEqual({ claimed: true })
+    await a.holdRunner('split' as never, true)
+    homeA.add('split', 2)
+    await a.holdRunner('split' as never, false)
+    deviceB.setState('online')
+    await b.holdRunner('split' as never, false)
+    await vi.waitFor(() => { expect(homeB.logs.get('split')!.events).toEqual(homeA.logs.get('split')!.events) })
+    await vi.waitFor(() => { expect(delivered).toHaveLength(1) })
+    expect(delivered[0]).toEqual({
+      operation: 'prompt',
+      request: { requestId: 'r-b', mode: 'queue', resent: true, content: prompt, clientTimeZone: 'Europe/Amsterdam' },
+    })
   })
 
   it('publishes recent sessions in batches, imports them on the other device, and follows new turns both ways', async () => {

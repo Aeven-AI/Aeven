@@ -9497,7 +9497,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionQueuedItem',
-    declaration: 'export interface SessionQueuedItem {\n    readonly id: MessageId;\n    readonly placement: \'queued\' | \'steering\' | \'context\';\n    readonly rpcId?: SessionRequestId;\n    readonly message: {\n        readonly id: MessageId;\n        readonly content: readonly JsonValue[];\n    };\n}',
+    declaration: 'export interface SessionQueuedItem {\n    readonly id: MessageId;\n    readonly placement: \'queued\' | \'steering\' | \'context\';\n    readonly rpcId?: SessionRequestId;\n    readonly resent?: true;\n    readonly message: {\n        readonly id: MessageId;\n        readonly content: readonly JsonValue[];\n    };\n}',
   },
   {
     name: 'SessionRawArtifact',

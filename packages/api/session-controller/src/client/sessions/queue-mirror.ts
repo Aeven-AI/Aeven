@@ -109,6 +109,7 @@ function toQueuedMessage(item: SessionQueuedItem): QueuedMessage {
     messageId: item.message.id,
     placement: item.placement,
     ...(item.rpcId === undefined ? {} : { rpcId: item.rpcId }),
+    ...(item.resent === true ? { resent: true as const } : {}),
     content,
     preview: previewOf(content),
     text: textOf(content),
