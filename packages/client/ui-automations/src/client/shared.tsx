@@ -248,7 +248,7 @@ export function ViewBar({ t, view, showView }: {
     )
   }
   return (
-    <div className={css.bar}>
+    <div className={`${css.bar} ${css.tabsBar}`}>
       <nav className={css.tabs} aria-label={t('title')}>
         <button className={css.tab} aria-pressed={view === 'overview'} onClick={() => { showView('overview') }}>{t('title')}</button>
         <button className={css.tab} aria-pressed={view === 'runs'} onClick={() => { showView('runs') }}>{t('history')}</button>
