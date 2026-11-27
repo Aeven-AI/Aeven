@@ -85,6 +85,15 @@ describe('Session queue snapshot intake', () => {
     ])
   })
 
+  it('carries the resend mark of a prompt account sync sends again', () => {
+    const session = makeSession()
+    const frame = queueFrame([{ id: 'q-1', body: 'sent again' }, { id: 'q-2', body: 'typed' }])
+    session.handleControlFrame({ ...frame, items: [{ ...frame.items[0]!, resent: true }, frame.items[1]!] })
+    const queue = session.getSnapshot().queue
+    expect(queue.map(row => row.resent)).toEqual([true, undefined])
+    expect('resent' in (queue[1] ?? {})).toBe(false)
+  })
+
   it('marks mixed-content messages non-editable and keeps image blocks out of the text preview', () => {
     const session = makeSession()
     session.handleControlFrame(queueFrame([{

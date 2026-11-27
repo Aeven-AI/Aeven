@@ -486,8 +486,10 @@ function QueuedAction({ label, disabled, onClick, children }: {
 /**
  * Render one Host-queued message in the transcript, after the running turn it
  * waits for: the user bubble marked "Queued", with inline edit, remove, and
- * send-now (steer into the running turn). The row leaves when the admitted
- * message is logged, or when the Host removes or steers it.
+ * send-now (steer into the running turn). A prompt account sync submits a
+ * second time is marked "Sent again" instead, with the reason in its tooltip.
+ * The row leaves when the admitted message is logged, or when the Host removes
+ * or steers it.
  * @param props - the Host queue row, whether the queue accepts mutations, and the queue actions.
  * @returns the queued user bubble.
  */
@@ -550,7 +552,13 @@ export function QueuedMessageBubble({ row, sentAt, running, mutable, updateQueue
       t={t}
       actions={() => (
         <div className={css.queuedActions}>
-          <span className={css.queuedLabel}>{t('message.queued')}</span>
+          {row.resent === true
+            ? (
+              <Tooltip label={t('message.queued.resentHint')} side="bottom">
+                <span className={css.queuedLabel}>{t('message.queued.resent')}</span>
+              </Tooltip>
+            )
+            : <span className={css.queuedLabel}>{t('message.queued')}</span>}
           {mutable && (editing !== null
             ? <>
               <QueuedAction label={t('message.queued.save')} disabled={busy || editing.trim() === ''} onClick={() => { void save() }}>

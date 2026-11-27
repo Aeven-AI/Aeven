@@ -267,13 +267,13 @@ function queueItems(
     ...project('next-turn').map(message => ({
       id: message.id,
       placement: 'queued' as const,
-      ...promptRpcId(message),
+      ...promptOrigin(message),
       message: { id: message.id, content: message.content as unknown as JsonValue[] },
     })),
     ...project('next-step').map(message => ({
       id: message.id,
       placement: message.source.kind === 'user' ? 'steering' as const : 'context' as const,
-      ...promptRpcId(message),
+      ...promptOrigin(message),
       message: { id: message.id, content: message.content as unknown as JsonValue[] },
     })),
   ]
@@ -293,10 +293,11 @@ function claimedMessageIds(agent: Agent, splice: SessionEventMap['agent/inbox/sp
     .flatMap(message => message.source.kind === 'user' ? [message.id] : [])
 }
 
-/** Prompt-RPC identity carried by a browser-submitted message's user source. */
-function promptRpcId(message: UserMessage): Pick<SessionQueuedItem, 'rpcId'> {
+/** Prompt-RPC identity and resend mark carried by a browser-submitted message's user source. */
+function promptOrigin(message: UserMessage): Pick<SessionQueuedItem, 'rpcId' | 'resent'> {
   const source = message.source
-  return source.kind === 'user' && 'rpcId' in source ? { rpcId: source.rpcId } : {}
+  if (source.kind !== 'user' || !('rpcId' in source)) return {}
+  return source.resent === true ? { rpcId: source.rpcId, resent: true } : { rpcId: source.rpcId }
 }
 
 function jobView(job: JobView): SessionJob {

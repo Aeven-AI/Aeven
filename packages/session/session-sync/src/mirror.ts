@@ -7,8 +7,8 @@
  * that position (`first === base`); later batches continue it. The fold accepts a batch only when it starts at the
  * accepted head and either continues the current claim or starts a new one there. A batch from a device that fell
  * behind (it slept, or ran a turn while partitioned) therefore never lands: every device drops it, and the device
- * that wrote it rewrites its local log to the accepted history and submits the user's dropped prompts again, so
- * they are answered on the accepted history. A stored log that differs from history accepted under this device's own
+ * that wrote it rewrites its local log to the accepted history and submits the user's dropped prompts again, marked
+ * `resent`, so they are answered on the accepted history. A stored log that differs from history accepted under this device's own
  * claim was changed on disk after it was published; it is put back to the accepted history and nothing is asked again.
  *
  * Input never waits for a handover: a device that cannot run the next turn itself, because another device is
@@ -360,6 +360,7 @@ function sameEvent(left: SessionEvent, right: SessionEvent): boolean {
 
 /**
  * The prompts a user typed in some events, as `prompt` inputs, so a dropped turn's questions can be asked again.
+ * Each request carries `resent: true`, so the device that applies it can show that the message is sent a second time.
  * @param events - dropped events.
  * @returns one input per user-authored message, in log order.
  */
@@ -378,6 +379,7 @@ function droppedPrompts(events: readonly SessionEvent[]): SessionHandoffInput[] 
       request: {
         requestId: typeof source.rpcId === 'string' ? source.rpcId : randomUUID(),
         mode: 'queue',
+        resent: true,
         content: message.content,
         ...typeof source.clientTimeZone === 'string' ? { clientTimeZone: source.clientTimeZone } : {},
         ...typeof source.clientDisplayName === 'string' ? { clientDisplayName: source.clientDisplayName } : {},
@@ -450,12 +452,11 @@ export class SessionMirror {
   claim(sessionId: SessionId): Promise<SessionClaim> {
     // A turn running here continues without waiting for an earlier operation on the session.
     // So does a claim whose lease is still held, such as the one the input that starts this turn just took.
-    const current = this.claims.get(sessionId)
-    if (current !== undefined && !this.isClosed() && current.holder?.refused() !== true
-      && (this.running.has(sessionId) || current.holder?.held() === true)) {
-      return Promise.resolve({ claimed: true })
-    }
+    if (this.holdsClaim(sessionId)) return Promise.resolve({ claimed: true })
     return this.own(sessionId, async () => {
+      // A claim that waited behind another one for the same session finds that claim in place: taking the lease again
+      // would dispose the holder the first claim's turn renews, which gives the relay lease up mid-turn.
+      if (this.holdsClaim(sessionId)) return { claimed: true }
       await this.starting
       // The device another one took the session from disposes its own Agent, and that disposal waits for a turn
       // running here. A turn that waited for the release would keep it open for good, so it starts nowhere
@@ -521,6 +522,13 @@ export class SessionMirror {
         throw error
       }
     })
+  }
+
+  /** Whether this device's claim on a session stands: a turn runs here, or the claim's lease is held and not refused. */
+  private holdsClaim(sessionId: SessionId): boolean {
+    const current = this.claims.get(sessionId)
+    return current !== undefined && !this.isClosed() && current.holder?.refused() !== true
+      && (this.running.has(sessionId) || current.holder?.held() === true)
   }
 
   /**

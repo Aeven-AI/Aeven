@@ -98,8 +98,11 @@ function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
 }
 
 /** Build the user-message source of a prompt or edit, validating its client time zone and retaining its reported profile name. */
-function userSource(request: SessionPromptRequest | SessionEditRequest): MessageSource {
-  const profile = request.clientDisplayName === undefined ? {} : { clientDisplayName: request.clientDisplayName }
+function userSource(request: SessionPromptRequest | SessionEditRequest, resent = false): MessageSource {
+  const profile = {
+    ...request.clientDisplayName === undefined ? {} : { clientDisplayName: request.clientDisplayName },
+    ...resent ? { resent: true as const } : {},
+  }
   if (request.clientTimeZone === undefined) return { kind: 'user', rpcId: request.requestId, ...profile }
   const clientTimeZone = canonicalClientTimeZone(request.clientTimeZone)
   if (clientTimeZone === undefined) {
@@ -574,9 +577,10 @@ export class SessionCommandController {
   /**
    * Reject empty content, then admit one prompt after Agent and attachment validation.
    * @param request - Session identity, prompt content, source metadata, and delivery mode.
+   * @param resent - account sync submits the prompt a second time; the logged message source records it.
    * @returns acknowledgement that the Agent accepted the prompt.
    */
-  async prompt(request: SessionPromptRequest): Promise<SessionPromptValue> {
+  async prompt(request: SessionPromptRequest, resent = false): Promise<SessionPromptValue> {
     if (!hasPromptContent(request.content)) {
       throw new RemoteError(
         'gateway/bad-request',
@@ -584,9 +588,11 @@ export class SessionCommandController {
         {},
       )
     }
-    const source = userSource(request)
+    const source = userSource(request, resent)
     const owner = await this.claimRunnerAccount(request.sessionId)
-    if (owner !== undefined) return await this.forward(owner, request.sessionId, 'prompt', request)
+    if (owner !== undefined) {
+      return await this.forward(owner, request.sessionId, 'prompt', resent ? { ...request, resent: true } : request)
+    }
     const agent = await this.resolveAgent(request.sessionId)
     // One request is one prompt. The same request can reach this device twice: forwarded through the account inbox
     // to the device running the turn, and again from the typing device's own queue once that turn ends.
@@ -1078,7 +1084,12 @@ export class SessionCommandController {
     switch (input.operation) {
       // A prompt from another device never joins the turn running here: it becomes its own turn with its own answer,
       // instead of turning that turn's answer into intermediate work.
-      case 'prompt': await this.prompt({ ...request as SessionPromptRequest, mode: 'queue' }); return
+      case 'prompt': {
+        // Account sync marks a prompt it submits a second time; the mark is not part of the client request.
+        const { resent, ...prompt } = request as SessionPromptRequest & { readonly resent?: unknown }
+        await this.prompt({ ...prompt, mode: 'queue' }, resent === true)
+        return
+      }
       case 'select-model': await this.selectModel(request as SessionSelectModelRequest); return
       case 'edit': await this.edit(request as SessionEditRequest); return
       case 'retry': await this.retry(request); return

@@ -1569,6 +1569,30 @@ describe('ChatView', () => {
     expect(updateQueue).toHaveBeenCalledWith('q-occurrence', { kind: 'steer' })
   })
 
+  it('marks a queued prompt account sync sends again as sent again, keeping its queue actions', () => {
+    const h = makeHarness(
+      { nodes: [assistant(1, 'working')] },
+      {
+        running: true,
+        queue: [{
+          id: 'q-resent' as never,
+          messageId: 'q-resent-message' as never,
+          placement: 'queued' as const,
+          rpcId: 'req-resent' as never,
+          resent: true,
+          content: [{ type: 'text' as const, text: 'the runbook is almost done' }],
+          preview: 'the runbook is almost done',
+          text: 'the runbook is almost done',
+        }],
+      },
+    )
+    const view = render(<h.ChatView {...h.props} />)
+    const row = view.getByText('the runbook is almost done').closest('[data-queued]') as HTMLElement
+    expect(within(row).getByText('再次发送')).toBeTruthy()
+    expect(within(row).queryByText('排队中')).toBeNull()
+    expect(within(row).getByRole('button', { name: '删除排队消息' })).toBeTruthy()
+  })
+
   it('an image echo renders its previews through the message-image slot', () => {
     const h = makeHarness(
       { nodes: [] },

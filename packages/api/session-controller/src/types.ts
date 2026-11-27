@@ -538,8 +538,11 @@ export type SessionRequestId = Branded<'session-request-id'>
 
 declare module '@aeven/llm' {
   interface MessageSourceMap {
-    /** Browser prompt correlation, optional Host-validated time zone, and reported profile name. */
-    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string; clientDisplayName?: string }
+    /**
+     * Browser prompt correlation, optional Host-validated time zone, and reported profile name. `resent` marks a prompt
+     * account sync submitted a second time because the turn that first answered it never reached the account's history.
+     */
+    'user-rpc': { kind: 'user'; rpcId: SessionRequestId; clientTimeZone?: string; clientDisplayName?: string; resent?: true }
   }
 }
 
@@ -654,6 +657,8 @@ export interface SessionQueuedItem {
   readonly placement: 'queued' | 'steering' | 'context'
   /** Prompt-RPC identity from the queued message's user source; clients retire the matching local submission echo on it. */
   readonly rpcId?: SessionRequestId
+  /** Set when account sync submitted the prompt a second time; see the `user-rpc` message source. */
+  readonly resent?: true
   /** JSON-safe message fields consumed by pending-queue presentation. */
   readonly message: {
     readonly id: MessageId

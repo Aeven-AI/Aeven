@@ -95,6 +95,31 @@ describe('Session control queue projection', () => {
     await iterator.next()
   })
 
+  it('projects the resend mark of a prompt account sync sends again, and omits it on other prompts', async () => {
+    const { control, inbox } = await harness()
+    const resent = createUserMessage({
+      content: [{ type: 'text', text: 'sent again' }],
+      source: { kind: 'user', rpcId: 'req-7' as never, resent: true },
+    })
+    const typed = createUserMessage({ content: [{ type: 'text', text: 'typed' }], source: { kind: 'user', rpcId: 'req-8' as never } })
+    inbox.append('next-turn', resent)
+    inbox.append('next-turn', typed)
+
+    const abort = new AbortController()
+    const iterator = control.control(abort.signal)[Symbol.asyncIterator]()
+    const opened = await iterator.next()
+    if (opened.done || opened.value.type !== 'baseline') throw new Error('missing baseline')
+    const items = opened.value.value.queues['queue-session' as SessionId] ?? []
+    expect(items.map(item => ({ rpcId: item.rpcId, resent: item.resent }))).toEqual([
+      { rpcId: 'req-7', resent: true },
+      { rpcId: 'req-8', resent: undefined },
+    ])
+    expect('resent' in (items[1] ?? {})).toBe(false)
+
+    abort.abort()
+    await iterator.next()
+  })
+
   it('ignores inbox events without the exact live Agent session', async () => {
     const { ctx, control, agent, inbox } = await harness()
     const abort = new AbortController()
