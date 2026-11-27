@@ -2069,7 +2069,7 @@ async function prepareTab(tab, overlayScript) {
 * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
 * and bookmarks are read on request; the app asks the user before it requests them.
 * Two kinds of connection carry the same messages: the desktop app's
-* WebSocket, and an Aeven web page (`externally_connectable`), which is how hosted
+* WebSocket (or an older app's native host), and an Aeven web page (`externally_connectable`), which is how hosted
 * Aeven reaches this browser; localhost pages may connect only to an unpacked
 * development install. Messages are `{ id, method, params }` requests answered on
 * the asking connection with `{ id, result }` or `{ id, error }`, and
@@ -2082,6 +2082,11 @@ async function prepareTab(tab, overlayScript) {
 * listens on the port without the secret gets no answer from this browser. The
 * secret arrives in the fragment of `connect.html`, which only a program running
 * on this computer can open, because no web page may navigate to it.
+*
+* When no port answers, the worker connects through the native messaging host
+* (`HOST`) that desktop apps before the WebSocket registered, so this extension
+* also works with those apps. Chrome disconnects that port at once when no app
+* registered the host, and the host disconnects when its app is not running.
 */
 /**
 * The loopback ports the Aeven desktop app serves this extension on, tried in
@@ -2092,6 +2097,8 @@ const APP_PORTS = [
 	47821,
 	47822
 ];
+/** The native messaging host desktop apps before the WebSocket register; the worker falls back to it. */
+const HOST = "io.aeven.browser";
 /** The request and event set this extension speaks; the app refuses an older one. */
 const PROTOCOL = 3;
 /** Title of the tab group the agent's tabs live in. */
@@ -2112,7 +2119,7 @@ const IDLE_DETACH_MS = 1e4;
 const KEEPALIVE_MS = 2e4;
 /** How long the app is given to finish the pairing exchange on one port, in ms. */
 const HANDSHAKE_MS = 5e3;
-/** The desktop app's authenticated WebSocket. */
+/** The connection to the desktop app: its authenticated WebSocket, or an older app's native host. */
 let app;
 /** Whether a connection attempt is running. */
 let connecting = false;
@@ -2152,7 +2159,7 @@ function saveTabs() {
 }
 /** Send one notification to every connection. */
 function post(message) {
-	app?.send(JSON.stringify(message));
+	app?.send(message);
 	for (const page of pages) page.postMessage(message);
 }
 /** What this install says about itself on connecting and when asked. */
@@ -2335,7 +2342,10 @@ function adopt(socket, early) {
 		retry();
 		return;
 	}
-	app = socket;
+	const link = { send: (message) => {
+		socket.send(JSON.stringify(message));
+	} };
+	app = link;
 	retryMs = 1e3;
 	let listener;
 	socket.onmessage = (event) => {
@@ -2354,17 +2364,42 @@ function adopt(socket, early) {
 		socket.send(JSON.stringify({ event: "ping" }));
 	}, KEEPALIVE_MS);
 	socket.onclose = () => {
-		if (app !== socket) return;
+		if (app !== link) return;
 		app = void 0;
 		clearInterval(keepalive);
 		if (pages.size === 0) detachAll();
 		retry();
 	};
 	info().then((about) => {
-		if (app === socket) socket.send(JSON.stringify({
+		if (app === link) link.send({
 			event: "hello",
 			...about
-		}));
+		});
+	});
+}
+/**
+* Serve an older desktop app through the native messaging host it registered,
+* until the port disconnects; the worker then tries the WebSocket again first.
+*/
+function connectNative() {
+	const port = chrome.runtime.connectNative(HOST);
+	const link = { send: (message) => {
+		port.postMessage(message);
+	} };
+	app = link;
+	serve(portConnection(port));
+	port.onDisconnect.addListener(() => {
+		chrome.runtime.lastError;
+		if (app !== link) return;
+		app = void 0;
+		if (pages.size === 0) detachAll();
+		retry();
+	});
+	info().then((about) => {
+		if (app === link) link.send({
+			event: "hello",
+			...about
+		});
 	});
 }
 /** Try the app again after the backoff, which doubles up to `MAX_RETRY_MS`. */
@@ -2373,7 +2408,7 @@ function retry() {
 	retryTimer = setTimeout(connect, retryMs);
 	retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
 }
-/** Connect to the app, trying each port in order, and retry with backoff while none answers. */
+/** Connect to the app, trying each port in order and then an older app's native host, and retry with backoff. */
 function connect() {
 	if (app !== void 0 || connecting) return;
 	connecting = true;
@@ -2396,7 +2431,7 @@ function connect() {
 			connect();
 			return;
 		}
-		retry();
+		connectNative();
 	});
 }
 /**

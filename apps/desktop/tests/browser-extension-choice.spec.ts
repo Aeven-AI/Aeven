@@ -1,5 +1,6 @@
 // The reader's choice to let the browser extension reach the app: stored in the Aeven home, on by
-// default, and followed by serving the extension's WebSocket or closing it.
+// default, and followed by serving the WebSocket and registering the native host, or closing both and
+// removing the registrations.
 
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -11,6 +12,8 @@ import { EXTENSION_IDS, ExtensionIntegration, ExtensionLinks } from '../src/brow
 
 let home: string
 let port: number
+let pipes = 0
+let calls: string[]
 
 beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), 'avn-ext-choice-'))
@@ -19,6 +22,7 @@ beforeEach(async () => {
   await new Promise<void>((resolve) => { probe.listen(0, '127.0.0.1', resolve) })
   port = (probe.address() as { port: number }).port
   await new Promise<void>((resolve) => { probe.close(() => { resolve() }) })
+  calls = []
 })
 
 afterEach(async () => {
@@ -26,11 +30,19 @@ afterEach(async () => {
 })
 
 /**
- * An integration serving on the test's port.
+ * An integration serving on the test's port and a native host socket of its own, recording what it registers and removes.
  * @returns the integration.
  */
 function integration(): ExtensionIntegration {
-  return new ExtensionIntegration(home, { registry: new ExtensionLinks(), ports: [port], pair: async () => undefined })
+  pipes += 1
+  return new ExtensionIntegration(home, {
+    registry: new ExtensionLinks(),
+    ports: [port],
+    pair: async () => undefined,
+    socket: process.platform === 'win32' ? `\\\\.\\pipe\\avn-ext-choice-${String(process.pid)}-${String(pipes)}` : join(home, `choice-${String(pipes)}.sock`),
+    install: async () => { calls.push('install') },
+    remove: async () => { calls.push('remove') },
+  })
 }
 
 /**
@@ -53,6 +65,7 @@ describe('the choice to let the extension connect', () => {
     expect(choice.enabled).toBe(true)
     await choice.start()
     expect(await serving()).toBe(true)
+    expect(calls).toEqual(['install'])
     choice.close()
   })
 
@@ -61,12 +74,14 @@ describe('the choice to let the extension connect', () => {
     await choice.start()
     await choice.setEnabled(false)
     expect(await serving()).toBe(false)
+    expect(calls).toEqual(['install', 'remove'])
     expect(JSON.parse(await readFile(join(home, 'desktop', 'browser-extension.json'), 'utf8'))).toEqual({ enabled: false })
 
     const next = integration()
     expect(next.enabled).toBe(false)
     await next.start()
     expect(await serving()).toBe(false)
+    expect(calls).toEqual(['install', 'remove'])
   })
 
   it('serves again when turned back on', async () => {
@@ -74,6 +89,7 @@ describe('the choice to let the extension connect', () => {
     await choice.setEnabled(false)
     await choice.setEnabled(true)
     expect(await serving()).toBe(true)
+    expect(calls).toEqual(['remove', 'install'])
     expect(choice.enabled).toBe(true)
     choice.close()
   })
@@ -83,6 +99,7 @@ describe('the choice to let the extension connect', () => {
     await Promise.all([choice.start(), choice.setEnabled(false), choice.setEnabled(true), choice.setEnabled(false)])
     expect(choice.enabled).toBe(false)
     expect(await serving()).toBe(false)
+    expect(calls).toEqual(['install', 'remove', 'install', 'remove'])
   })
 
   it('keeps one pairing secret across launches', async () => {
