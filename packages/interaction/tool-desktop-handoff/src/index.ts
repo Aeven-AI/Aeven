@@ -37,7 +37,7 @@ export const Config: z<Config> = z.object({
 })
 
 /** The reasons the model may give, in the order its schema lists them. */
-const REASONS: readonly DesktopHandoffReason[] = ['computer', 'files', 'terminal', 'device', 'models']
+const REASONS: readonly DesktopHandoffReason[] = ['computer', 'browser', 'files', 'terminal', 'device', 'models']
 
 /**
  * The model-facing text for one outcome.
@@ -65,7 +65,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'offer_desktop',
     description: 'Offer the user the Aeven desktop app when their request needs their own computer and this environment cannot do it: '
-      + 'controlling apps on their computer (computer use), their own files and folders, a terminal on their machine, phone simulators, or local models. '
+      + 'controlling apps on their computer (computer use), a browser (reading or using a website, including video captions and transcripts), their own files and folders, a terminal on their machine, phone simulators, or local models. '
       + 'A dialog opens in the user\'s window with a button that continues this conversation in Aeven Desktop. '
       + 'Call it once, at the point where you would otherwise say the request cannot be done here, and never for something this environment can do.',
     parameters: {
@@ -73,7 +73,7 @@ export function apply(ctx: Context, config: Config): void {
         type: 'string',
         required: true,
         enum: [...REASONS],
-        description: 'What the request needs: computer (apps and computer use), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).',
+        description: 'What the request needs: computer (apps and computer use), browser (a website, video captions or transcripts), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).',
       },
     },
     // No tool timeout of its own: one equal to the answer window would race it and report an unanswered offer as a

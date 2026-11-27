@@ -7157,7 +7157,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'DesktopHandoffReason',
-    declaration: 'export type DesktopHandoffReason = \'computer\' | \'files\' | \'terminal\' | \'device\' | \'models\';',
+    declaration: 'export type DesktopHandoffReason = \'computer\' | \'browser\' | \'files\' | \'terminal\' | \'device\' | \'models\';',
   },
   {
     name: 'DesktopHandoffResult',

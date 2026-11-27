@@ -44,7 +44,7 @@ describe('offer_desktop tool', () => {
       name: 'offer_desktop',
       parameters: {
         type: 'object',
-        properties: { reason: { type: 'string', enum: ['computer', 'files', 'terminal', 'device', 'models'] } },
+        properties: { reason: { type: 'string', enum: ['computer', 'browser', 'files', 'terminal', 'device', 'models'] } },
         required: ['reason'],
       },
     })
