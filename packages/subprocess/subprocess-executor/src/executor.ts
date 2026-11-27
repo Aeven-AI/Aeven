@@ -68,6 +68,15 @@ function executable(program: string, cwd: string, env: NodeJS.ProcessEnv): strin
   return undefined
 }
 
+/**
+ * Swallow an error on a launcher pipe. A launcher can end while it waits in the ready pool or as a command is
+ * handed to it, so ending its `stdin` or writing the script to `control` can fail with `EPIPE`; without a listener
+ * Node would raise that as an uncaught exception and end the Host. The command's outcome still arrives as the
+ * helper's `gone` or `exit` message for the launcher, or through {@link Executor} settling every command when the
+ * helper ends, and a caller that listens on the command's stdio receives the same error itself.
+ */
+function ignoreLauncherPipeError(): void {}
+
 /** A command started in a launcher, shaped like the ChildProcess members the local runtime reads. */
 class LaunchedProcess extends EventEmitter {
   exitCode: number | null = null
@@ -230,6 +239,7 @@ export class Executor {
     switch (message.t) {
       case 'handle': {
         if (handle === undefined) return
+        handle.on('error', ignoreLauncherPipeError)
         const launcher = this.pending.get(message.id) ?? { id: message.id }
         launcher[message.which] = handle
         this.pending.set(message.id, launcher)
