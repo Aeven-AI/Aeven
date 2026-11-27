@@ -38,7 +38,7 @@ import type { AddressInfo } from 'node:net'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { execFile } from 'node:child_process'
-import { WebSocketServer, type WebSocket } from 'ws'
+import { WebSocketServer, type RawData, type WebSocket } from 'ws'
 
 /**
  * The Aeven extension's ids: the Chrome Web Store item's, then the development
@@ -62,6 +62,17 @@ const INFO_TIMEOUT_MS = 10_000
 const LAUNCH_CONNECT_TIMEOUT_MS = 20_000
 /** How long a new connection is given to answer the challenge, in ms. */
 const AUTH_TIMEOUT_MS = 10_000
+
+/**
+ * The UTF-8 text of a WebSocket frame, in whichever form `ws` delivers it.
+ * @param data - the frame's payload.
+ * @returns its text.
+ */
+function frameText(data: RawData): string {
+  if (Array.isArray(data)) return Buffer.concat(data).toString('utf8')
+  if (Buffer.isBuffer(data)) return data.toString('utf8')
+  return Buffer.from(data).toString('utf8')
+}
 
 /** One extension tab as listed to the agent. */
 export interface ExtensionTabInfo {
@@ -115,7 +126,7 @@ export class ExtensionLink {
    */
   constructor(socket: WebSocket) {
     this.#socket = socket
-    socket.on('message', (data, isBinary) => { if (!isBinary) this.#receive(String(data)) })
+    socket.on('message', (data, isBinary) => { if (!isBinary) this.#receive(frameText(data)) })
     socket.on('close', () => { this.#drop() })
     socket.on('error', () => { this.#drop() })
   }
@@ -406,7 +417,7 @@ function authenticate(
   socket.on('error', () => { socket.terminate() })
   socket.once('message', (data, isBinary) => {
     clearTimeout(timer)
-    const reply = isBinary ? undefined : readAuthReply(String(data))
+    const reply = isBinary ? undefined : readAuthReply(frameText(data))
     const expected = Buffer.from(pairingProof(options.secret, 'extension', port, challenge), 'hex')
     if (reply?.proof !== undefined && timingSafeEqual(Buffer.from(reply.proof, 'hex'), expected)) {
       socket.send(JSON.stringify({ event: 'authed', proof: pairingProof(options.secret, 'app', port, reply.challenge) }))

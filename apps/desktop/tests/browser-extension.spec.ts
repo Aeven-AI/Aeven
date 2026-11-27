@@ -50,7 +50,7 @@ async function pair(options: { origin?: string; secret?: string | undefined } = 
   const authed = await new Promise<boolean>((resolve) => {
     socket.on('error', () => { resolve(false) })
     socket.on('close', () => { resolve(false) })
-    socket.on('message', (data) => {
+    socket.on('message', (data: Buffer) => {
       const message = JSON.parse(String(data)) as { event?: string; nonce?: string; proof?: string }
       if (message.event === 'challenge' && message.nonce !== undefined) {
         const proof = secret === undefined ? undefined : pairingProof(secret, 'extension', port, message.nonce)
@@ -75,7 +75,7 @@ async function fakeExtension(
 ): Promise<WebSocket> {
   const { socket, authed } = await pair()
   expect(authed).toBe(true)
-  socket.on('message', (data) => {
+  socket.on('message', (data: Buffer) => {
     const message = JSON.parse(String(data)) as { id: number; method: string }
     if (message.method === 'info') {
       if (options.answerInfo !== false) socket.send(JSON.stringify({ id: message.id, result: info }))
