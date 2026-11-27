@@ -9,6 +9,7 @@
 import { lookup as systemLookup } from 'node:dns/promises'
 import type { LookupAddress, LookupOptions } from 'node:dns'
 import { isIP } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import type { Dispatcher, Response } from 'undici'
 
 import ipaddr from 'ipaddr.js'
@@ -32,6 +33,30 @@ export interface PinnedResponse {
 
 /** Resolver signature used to test public-address policy without process DNS changes. */
 export type AddressResolver = (hostname: string, options: { all: true; order: 'verbatim' }) => Promise<LookupAddress[]>
+
+/**
+ * Return whether any local interface holds an IPv6 address outside loopback and link-local
+ * scope. Without one, IPv6 destinations are unreachable (`ENETUNREACH`); glibc's `AI_ADDRCONFIG`
+ * counts link-local addresses, so it still returns AAAA answers on such hosts.
+ */
+function hostHasRoutableIpv6(): boolean {
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries ?? []) {
+      if (entry.family !== 'IPv6' || entry.internal) continue
+      if (ipaddr.parse(entry.address.split('%')[0] ?? '').range() !== 'linkLocal') return true
+    }
+  }
+  return false
+}
+
+/**
+ * System resolver that drops IPv6 answers on hosts without a routable IPv6 address, so a pinned
+ * connection never races an unreachable IPv6 destination against a reachable IPv4 one.
+ */
+const routableSystemLookup: AddressResolver = async (hostname, options) => {
+  const resolved = await systemLookup(hostname, options)
+  return hostHasRoutableIpv6() ? resolved : resolved.filter(entry => entry.family !== 6)
+}
 
 /** RFC 6052 prefix lengths that may carry an IPv4 destination through NAT64. */
 const RFC6052_PREFIX_LENGTHS = [32, 40, 48, 56, 64, 96] as const
@@ -75,7 +100,7 @@ export function isPublicIpAddress(input: string): boolean {
 export async function resolvePublicAddresses(
   hostname: string,
   signal: AbortSignal,
-  resolver: AddressResolver = systemLookup,
+  resolver: AddressResolver = routableSystemLookup,
 ): Promise<PublicAddress[]> {
   const unbracketed = stripIpv6Brackets(hostname)
   const literalFamily = isIP(unbracketed)
