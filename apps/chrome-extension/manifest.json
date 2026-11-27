@@ -30,7 +30,8 @@
     "bookmarks",
     "nativeMessaging",
     "storage",
-    "alarms"
+    "alarms",
+    "notifications"
   ],
   "externally_connectable": {
     "matches": [

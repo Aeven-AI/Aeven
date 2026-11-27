@@ -7,7 +7,14 @@
  * brought to the front so the user watches it work; it attaches
  * `chrome.debugger` to those tabs alone, and only while it acts: Chrome shows its
  * "started debugging this browser" bar while a debugger is attached, so a tab is
- * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
+ * detached once the agent has left it idle for `IDLE_DETACH_MS`. While it is
+ * attached, the tab shows the agent's indicator: a glow in the pointer's blue, a
+ * status tag naming the current step, and the Æven tab icon, removed before the
+ * debugger detaches. The app's `indicate` operation marks a step that waits for
+ * the person (the indicator then stays) or the agent finishing, each with a
+ * notification that brings the tab forward when clicked. The tab group's name
+ * carries the same state as a mark: ⌛ working, ✋ waiting for the person, ✅
+ * finished. History
  * and bookmarks are read on request; the app asks the user before it requests them.
  * Two kinds of connection carry the same messages: the desktop app's
  * WebSocket (or an older app's native host), and an Aeven web page (`externally_connectable`), which is how hosted
@@ -31,6 +38,7 @@
  */
 
 import { automate, ChromeTab, prepareTab, type BrowserAutomationInput } from '@aeven/browser-engine'
+import { indicatorCopy } from './indicator-text.ts'
 
 /**
  * The loopback ports the Aeven desktop app serves this extension on, tried in
@@ -41,8 +49,10 @@ const APP_PORTS = [47820, 47821, 47822]
 const HOST = 'io.aeven.browser'
 /** The request and event set this extension speaks; the app refuses an older one. */
 const PROTOCOL = 3
-/** Title of the tab group the agent's tabs live in. */
-const GROUP_TITLE = 'Aeven'
+/** Name of the tab group the agent's tabs live in; a status mark from `GROUP_MARKS` may precede it. */
+const GROUP_NAME = 'Æven'
+/** The mark before the group's name while the agent works, while a step waits for the person, and when it finished. */
+const GROUP_MARKS = { working: '⌛', input: '✋', done: '✅' } as const
 /** Session-storage key of the agent's tab ids, which survive the worker restarting. */
 const TABS_KEY = 'agentTabs'
 /** Local-storage key of this install's id, which tells the app's connections from different browsers apart. */
@@ -89,6 +99,12 @@ const running = new Map<string, { controller: AbortController; tabId: number }>(
 const idleTimers = new Map<number, ReturnType<typeof setTimeout>>()
 /** The agent pointer as a page script, bundled beside this worker. */
 let overlayScript: Promise<string> | undefined
+/** The agent's indicator (glow, status tag, tab icon) as a page script, bundled beside this worker. */
+let indicatorScript: Promise<string> | undefined
+/** The status tag's font as base64 and the Æven icon as a data URL, read once from the extension's files. */
+let indicatorAssets: Promise<{ font: string; icon: string }> | undefined
+/** Agent tabs whose step waits for the person: their indicator stays on the page when the debugger detaches. */
+const waiting = new Set<number>()
 const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
   for (const id of (stored[TABS_KEY] as number[] | undefined) ?? []) agentTabs.add(id)
 })
@@ -401,28 +417,144 @@ function forget(tabId: number): void {
 }
 
 /**
+ * Whether an operation runs on a tab.
+ * @param tabId - the tab.
+ * @returns true while one does.
+ */
+function busy(tabId: number): boolean {
+  return [...running.values()].some(operation => operation.tabId === tabId)
+}
+
+/**
+ * Detach the debugger from an agent tab, removing its indicator first unless a step waits for the person there.
+ * A tab an operation started on meanwhile stays attached.
+ * @param tabId - the tab.
+ */
+function release(tabId: number): void {
+  const cleared = waiting.has(tabId) ? Promise.resolve() : drawIndicator(tabId, undefined)
+  if (!waiting.has(tabId)) void unmarkWorking(tabId)
+  void cleared.then(() => {
+    if (!attached.has(tabId) || busy(tabId)) return
+    forget(tabId)
+    // The tab may have closed or detached since; either way it is no longer attached.
+    void chrome.debugger.detach({ tabId }).catch(() => undefined)
+  })
+}
+
+/**
+ * Take the working mark off an agent tab's group once the agent stopped acting there; a waiting or finished mark stays.
+ * @param tabId - the tab.
+ */
+async function unmarkWorking(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId).catch(() => undefined)
+  if (tab === undefined || tab.groupId < 0) return
+  const found = await chrome.tabGroups.get(tab.groupId).catch(() => undefined)
+  if (found?.title === `${GROUP_MARKS.working}${GROUP_NAME}`) await markGroup(tabId, undefined)
+}
+
+/**
  * Detach the debugger from a tab once no operation runs on it, which removes Chrome's debugging bar.
  * @param tabId - the tab.
  */
 function detachWhenIdle(tabId: number): void {
   clearTimeout(idleTimers.get(tabId))
-  if ([...running.values()].some(operation => operation.tabId === tabId)) return
+  if (busy(tabId)) return
   idleTimers.set(tabId, setTimeout(() => {
     idleTimers.delete(tabId)
-    if (!attached.has(tabId) || [...running.values()].some(operation => operation.tabId === tabId)) return
-    forget(tabId)
-    // The tab may have closed or detached since; either way it is no longer attached.
-    void chrome.debugger.detach({ tabId }).catch(() => undefined)
+    if (!attached.has(tabId) || busy(tabId)) return
+    release(tabId)
   }, IDLE_DETACH_MS))
 }
 
 /** Detach every agent tab: without a connection nothing drives them, so Chrome's debugging bar goes too. */
 function detachAll(): void {
-  for (const tabId of [...attached]) {
-    forget(tabId)
-    // The tab may have closed or detached since; either way it is no longer attached.
-    void chrome.debugger.detach({ tabId }).catch(() => undefined)
+  for (const tabId of [...attached]) release(tabId)
+}
+
+/** What the indicator shows, before the worker adds the tab icon. */
+interface IndicatorView {
+  readonly tone: 'working' | 'input' | 'done'
+  readonly text: string
+}
+
+/**
+ * One of the extension's files, base64-encoded.
+ * @param path - the file, relative to the extension's root.
+ * @returns its bytes as base64.
+ */
+async function base64Of(path: string): Promise<string> {
+  const bytes = new Uint8Array(await (await fetch(chrome.runtime.getURL(path))).arrayBuffer())
+  let binary = ''
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+  return btoa(binary)
+}
+
+/**
+ * Show or remove the agent's indicator in an attached agent tab: the glow around
+ * the page, the status tag, and the Æven tab icon (`indicator-page.ts`). A tab
+ * without the debugger is left as it is, since drawing would attach it and bring
+ * back Chrome's debugging bar.
+ * @param tabId - the tab.
+ * @param view - what to show; undefined removes the indicator.
+ */
+async function drawIndicator(tabId: number, view: IndicatorView | undefined): Promise<void> {
+  if (!attached.has(tabId)) return
+  indicatorScript ??= fetch(chrome.runtime.getURL('indicator-page.iife.js')).then(async response => await response.text())
+  indicatorAssets ??= Promise.all([base64Of('google-sans-flex-latin-wght-normal.woff2'), base64Of('icons/icon-32.png')])
+    .then(([font, icon]) => ({ font, icon: `data:image/png;base64,${icon}` }))
+  const [script, assets] = await Promise.all([indicatorScript, indicatorAssets])
+  const evaluate = async (expression: string): Promise<unknown> =>
+    ((await chrome.debugger.sendCommand({ tabId }, 'Runtime.evaluate', { expression, returnByValue: true })) as { result?: { value?: unknown } }).result?.value
+  const paint = async (): Promise<void> => {
+    if (await evaluate('window.__aevenIndicator?.hasFont() === true') !== true) {
+      await evaluate(`if (!window.__aevenIndicator) { ${script} } window.__aevenIndicator.loadFont(${JSON.stringify(assets.font)}); true`)
+    }
+    await evaluate(view === undefined ? 'window.__aevenIndicator.clear(); true' : `window.__aevenIndicator.show(${JSON.stringify({ ...view, icon: assets.icon })}); true`)
   }
+  await paint().catch(() => {
+    // The tab closed or its debugger detached during the call; nothing is left to draw on.
+  })
+}
+
+/**
+ * Notify the person about an agent tab; clicking the notification brings the tab forward.
+ * @param tabId - the tab.
+ * @param title - what happened.
+ * @param message - the detail, or empty for the tab's title.
+ */
+function notify(tabId: number, title: string, message: string): void {
+  void chrome.tabs.get(tabId).then(async (tab) => {
+    await chrome.notifications.create(`aeven-tab-${String(tabId)}`, {
+      type: 'basic', iconUrl: chrome.runtime.getURL('icons/icon-128.png'), title, message: message === '' ? tab.title ?? '' : message,
+    })
+  }).catch(() => {
+    // The tab closed before the notification could name it.
+  })
+}
+
+/**
+ * Show that a step in an agent tab waits for the person, that the agent finished, or neither.
+ * @param tabId - the tab.
+ * @param input - `state` (`input`, `done`, or `clear`) and an optional `message` the agent wrote.
+ * @throws {Error} when the state is none of those.
+ */
+async function attention(tabId: number, input: Record<string, unknown>): Promise<void> {
+  const state = input.state
+  if (state === 'clear') {
+    waiting.delete(tabId)
+    void markGroup(tabId, undefined)
+    await drawIndicator(tabId, undefined)
+    return
+  }
+  if (state !== 'input' && state !== 'done') throw new Error('indicate needs a state of input, done, or clear')
+  const message = typeof input.message === 'string' ? input.message.slice(0, 300) : ''
+  const copy = indicatorCopy()
+  const title = state === 'input' ? copy.input : copy.done
+  if (state === 'input') waiting.add(tabId)
+  else waiting.delete(tabId)
+  void markGroup(tabId, state)
+  await drawIndicator(tabId, { tone: state, text: message === '' ? title : `${title} · ${message}` })
+  notify(tabId, title, message)
 }
 
 /**
@@ -441,10 +573,33 @@ function agentTab(value: unknown): number {
  */
 async function group(tab: chrome.tabs.Tab): Promise<void> {
   if (tab.id === undefined) return
-  const [existing] = await chrome.tabGroups.query({ title: GROUP_TITLE, windowId: tab.windowId })
+  const existing = (await chrome.tabGroups.query({ windowId: tab.windowId })).find(found => isAgentGroup(found.title))
   const groupId = await chrome.tabs.group(existing === undefined ? { tabIds: tab.id } : { tabIds: tab.id, groupId: existing.id })
   // The group stays open, so the agent's tabs are in view rather than folded away.
-  await chrome.tabGroups.update(groupId, existing === undefined ? { title: GROUP_TITLE, color: 'grey', collapsed: false } : { collapsed: false })
+  await chrome.tabGroups.update(groupId, existing === undefined ? { title: GROUP_NAME, color: 'grey', collapsed: false } : { collapsed: false })
+}
+
+/**
+ * Whether a tab group is the agent's: its name, with or without a status mark, or `Aeven`, as earlier releases named it.
+ * @param title - the group's title.
+ * @returns true for the agent's group.
+ */
+function isAgentGroup(title: string | undefined): boolean {
+  return title === GROUP_NAME || title === 'Aeven' || Object.values(GROUP_MARKS).some(mark => title === `${mark}${GROUP_NAME}`)
+}
+
+/**
+ * Put a status mark before the name of the agent's group an agent tab is in.
+ * @param tabId - the tab.
+ * @param mark - the state to show; undefined shows the name alone.
+ */
+async function markGroup(tabId: number, mark: keyof typeof GROUP_MARKS | undefined): Promise<void> {
+  const tab = await chrome.tabs.get(tabId).catch(() => undefined)
+  if (tab === undefined || tab.groupId < 0) return
+  const found = await chrome.tabGroups.get(tab.groupId).catch(() => undefined)
+  if (found === undefined || !isAgentGroup(found.title)) return
+  const title = mark === undefined ? GROUP_NAME : `${GROUP_MARKS[mark]}${GROUP_NAME}`
+  if (found.title !== title) await chrome.tabGroups.update(tab.groupId, { title }).catch(() => undefined)
 }
 
 /**
@@ -462,15 +617,27 @@ async function handle(method: string, params: Record<string, unknown>, key: stri
     case 'operate': {
       const tabId = agentTab(params.tabId)
       if (typeof params.operation !== 'string') throw new Error('operate needs an operation')
+      // The app's notice that a step waits for the person or the agent finished; it attaches nothing.
+      if (params.operation === 'indicate') {
+        await attention(tabId, (params.input as Record<string, unknown> | undefined) ?? {})
+        return {}
+      }
       const controller = new AbortController()
       clearTimeout(idleTimers.get(tabId))
       running.set(key, { controller, tabId })
+      const copy = indicatorCopy()
+      const view: IndicatorView = { tone: 'working', text: copy.working(copy.steps[params.operation] ?? copy.steps.default) }
       try {
         const tab = await target(tabId)
+        waiting.delete(tabId)
+        void markGroup(tabId, 'working')
+        await drawIndicator(tabId, view)
         // This browser has no access to the computer's files, Downloads folder, or clipboard.
         return await automate(tab, params.operation, (params.input as BrowserAutomationInput | undefined) ?? {}, controller.signal, {})
       } finally {
         running.delete(key)
+        // A navigation replaced the document the indicator was drawn in.
+        void drawIndicator(tabId, view)
         detachWhenIdle(tabId)
       }
     }
@@ -528,6 +695,16 @@ async function handle(method: string, params: Record<string, unknown>, key: stri
   }
 }
 
+chrome.notifications.onClicked.addListener((id) => {
+  const tabId = Number(/^aeven-tab-(\d+)$/.exec(id)?.[1])
+  if (!Number.isSafeInteger(tabId)) return
+  void chrome.notifications.clear(id)
+  void chrome.tabs.update(tabId, { active: true }).then(async (tab) => {
+    if (tab !== undefined) await chrome.windows.update(tab.windowId, { focused: true })
+  }).catch(() => {
+    // The tab closed after the notification was shown.
+  })
+})
 chrome.debugger.onDetach.addListener((source) => {
   if (source.tabId !== undefined) forget(source.tabId)
 })

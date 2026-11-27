@@ -26,6 +26,7 @@ import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
 import { automate, mintRequestId, navigateClosed } from './automation.ts'
+import { ExtensionAttention, type AttentionSender } from './extension-attention.ts'
 import { UserChromePreference } from './user-chrome.ts'
 import { UserChromeRow, type UserChromeRowInjected } from './UserChromeRow.tsx'
 import { resolveAddress } from './url.ts'
@@ -34,6 +35,7 @@ import { searchHistory } from './history.ts'
 import {
   desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, livePaneCursors, setPointerHold, writeLastUrl,
   type BrowserGuest, type ChromeKind, type ChromeTabRef,
+  type DesktopBrowserBridge,
 } from './guest.ts'
 import { installLinkHandling } from './links.ts'
 import { PageExtensionLink, pageConnector, pageExtensionBridge, type PageExtensionBridge } from './extension-page.ts'
@@ -332,6 +334,18 @@ async function navigateInNewExtensionTab(
 }
 
 /**
+ * How to tell an extension tab that a step waits for the person or the turn ended: the extension's `indicate`
+ * operation, through the same bridge the agent's actions use.
+ * @param bridge - the desktop shell's or the web page's link to the extension.
+ * @returns the sender; a refusal, as from an extension too old to know `indicate`, is dropped.
+ */
+function attentionSender(bridge: Pick<DesktopBrowserBridge, 'chromeAutomate'>): AttentionSender {
+  return async (targetId, notice) => {
+    await bridge.chromeAutomate('extension', undefined, targetId, 'indicate', { ...notice }, mintRequestId(), 5000).then(() => undefined, () => undefined)
+  }
+}
+
+/**
  * Serve the agent's browser from a web page, where the reader's own browser,
  * reached through the Aeven extension, is the only one: the session's status, a
  * navigation that opens a new extension tab when none is current, its tab
@@ -342,6 +356,7 @@ async function navigateInNewExtensionTab(
  * @param ctx - Client root context.
  * @param bridge - the page's link to the extension.
  * @param prompt - the page's extension install prompt.
+ * @param attention - the record of the extension tab each running turn acted in, told about hand-offs here.
  * @returns the sidebar launcher's opener: a new tab of the reader's browser through the extension, after the prompt
  * when the extension is missing or the browser cannot run it.
  */
@@ -349,6 +364,7 @@ function installPageExtension(
   ctx: ClientContext,
   bridge: PageExtensionBridge,
   prompt: ExtensionPrompt,
+  attention: ExtensionAttention,
 ): (sessionId: string) => Promise<void> {
   const chrome: ChromeAccess = {
     bridge: () => bridge,
@@ -405,7 +421,13 @@ function installPageExtension(
         }
         return next()
       }
-      if (request.operation === 'handoff' || request.operation === 'control') return next()
+      if (request.operation === 'handoff') {
+        // The chat asks the person; the extension tab shows that it waits for them.
+        attention.input(sessionId, typeof request.input.message === 'string' ? request.input.message : '')
+        return next()
+      }
+      if (request.operation === 'control') return next()
+      if (request.operation !== 'status') attention.acted(sessionId, chromeTab.targetId, attentionSender(bridge))
       const operate = async (): Promise<unknown> => {
         const requestId = mintRequestId()
         const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
@@ -504,6 +526,8 @@ export function apply(ctx: ClientContext): void {
   // The desktop app reaches the extension through its native host; a web page
   // connects to the extension in the browser it runs in.
   const pageBridge = pageExtensionBridge(new PageExtensionLink(pageConnector))
+  // The extension tab each running turn acted in, which hears about hand-offs and the turn's end.
+  const attention = new ExtensionAttention()
   const extensionStatus = desktopBrowser()?.extensionStatus ?? pageBridge.extensionStatus
   // Only the desktop app registers itself with the browsers, so only it offers turning that off.
   const { extensionEnabled, setExtensionEnabled } = desktopBrowser() ?? {}
@@ -550,7 +574,7 @@ export function apply(ctx: ClientContext): void {
         },
       }),
     }, ExtensionPromptModal))
-    const openUserTab = installPageExtension(ctx, pageBridge, prompt)
+    const openUserTab = installPageExtension(ctx, pageBridge, prompt, attention)
     // A Host with its own Chromium opens it. Aeven Web's Host has none and fails the call, so the launcher opens a tab
     // of the reader's own browser through the extension when it is installed. Without the extension, the prompt asks
     // the reader to add it, continue in the desktop app, or download that, and explains a browser that cannot run one.
@@ -700,6 +724,7 @@ export function apply(ctx: ClientContext): void {
     // released and the pointer fades on its own idle timeout.
     scoped.remote.$on('api-session/status', (sessionId, running) => {
       setPointerHold(sessionId, running)
+      if (!running) attention.turnEnded(sessionId)
     })
     scoped.remote.$on('browser/automation', function (request, next) {
       const sessionId = (scoped.sessions).scopeOf(this)
@@ -731,6 +756,7 @@ export function apply(ctx: ClientContext): void {
         if (request.operation === 'control') return Promise.reject(new Error("preview_browser_control presses the sidebar browser's own toolbar; select a sidebar tab first"))
         const bridge = desktopBrowser()
         if (bridge === undefined) return next()
+        if (chromeTab.kind === 'extension' && request.operation !== 'status') attention.acted(sessionId, chromeTab.targetId, attentionSender(bridge))
         const requestId = mintRequestId()
         const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
         request.signal?.addEventListener('abort', cancel, { once: true })
@@ -746,6 +772,7 @@ export function apply(ctx: ClientContext): void {
           showCurrent()
           if (guest === undefined) await liveGuests.whenMounted(sessionId, request.signal)
           const message = typeof request.input.message === 'string' ? request.input.message : ''
+          attention.input(sessionId, message)
           const accepted = await handoffs.open(sessionId, request.input.reason, message, request.signal)
           return { accepted }
         })()
