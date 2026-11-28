@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-28-embedding-worker-close-waits-for-onnxruntime.md
+2026-11-28-embedding-worker-close-waits-for-onnxruntime.md: 4a918d40aa5a2a3cb06d4418742757fb589de1a0
+2026-11-28-embedding-worker-close-waits-for-onnxruntime.zh.md: 9aac7db3ed0a9a270f7c5b5bb18dce9f8320a6a4

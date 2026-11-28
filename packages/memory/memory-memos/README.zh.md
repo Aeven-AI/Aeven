@@ -84,6 +84,7 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 | [`src/cores.ts`](src/cores.ts) | 每个账户一个惰性打开的 MemOS 核心 |
 | [`src/core-pool.ts`](src/core-pool.ts) | 核心工作线程的 Host 一侧：把每个账户分配给持有账户最少的工作线程，代替其 `MemoryCore`，并处理工作线程的 LLM、嵌入和维护闸门请求 |
 | [`src/core-worker.ts`](src/core-worker.ts)、[`src/core-protocol.ts`](src/core-protocol.ts) | 打开并运行分配给它的核心的工作线程入口，以及它与 Host 之间的消息 |
+| [`src/embedding.ts`](src/embedding.ts)、[`src/worker.ts`](src/worker.ts) | Host 持有的嵌入工作线程，带按账户的队列。关闭时立即拒绝排队的请求，并等待正在运行的请求（例如启动时的模型加载）结束后才终止工作线程，因为在 onnxruntime 调用期间终止工作线程会使整个进程中止 |
 | [`src/migrate.ts`](src/migrate.ts) | 把更早构建共用的数据库一次性拆分为按账户的数据库 |
 | [`src/runtime.ts`](src/runtime.ts) | `MemoryCore` 之上的 `MemoryProvider`：命名空间、按会话的捕获队列、MemOS 会话与片段生命周期、工具引用翻译 |
 | [`src/host-llm.ts`](src/host-llm.ts) | `ctx.llm` 之上的 MemOS `HostLlmBridge`，带按会话的 async-local 路由 |
@@ -159,6 +160,7 @@ SUMMARY: <the stored summary, at most 300 characters>
 ## 已知限制与延期工作
 
 - **核心工作线程持有每个已打开的账户** —— 账户的核心和向量索引在提供方停止之前一直留在其工作线程上；尚未实现关闭空闲账户。停止的工作线程会释放其账户，这些账户在下次使用时重新打开，其上进行中的调用会失败。
+- **自行加载模型的核心工作线程会被直接终止** —— 当 `coreWorkers` 大于 `0` 且 `embeddingExecution: host` 时，每个核心工作线程都会加载本地嵌入模型；停止提供方时，即使工作线程正处于 onnxruntime 调用中也会被终止，这可能使进程中止。随附的组合使用 `embeddingExecution: worker`，此时核心工作线程把嵌入请求交给 Host 的工作线程。
 - **记忆同步留在 Host 进程内** —— `src/sync.ts` 通过自己的连接在 Host 线程上读写每个账户的数据库。
 - **共用数据库拆分** —— 按账户记忆启用后的首次启动会把每个账户的行从 `home/data/memos.db` 移进它自己的数据库，并把共用文件改名为 `memos.db.split`；拆分在第一个带标签的发布时移除。
 - **捕获的出处** —— MemOS 把工具输出存进轨迹，因此工具读到的文本可能在后续召回中再次出现；召回的上下文被框定为不可信数据。

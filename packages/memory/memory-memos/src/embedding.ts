@@ -38,6 +38,8 @@ export class HostedEmbeddings {
   private nextId = 0
   private failure: Error | undefined
   private closing: Promise<void> | undefined
+  /** Resolves `close()`'s wait once the running job has settled; set only while it waits. */
+  private settled: (() => void) | undefined
 
   /** @param limits - Maximum unfinished requests per account and for the Host. */
   constructor(private readonly limits: EmbeddingWorkerLimits) {}
@@ -66,6 +68,7 @@ export class HostedEmbeddings {
 
   private embed(owner: string, texts: string[], role: EmbedRole, context: ProviderCallCtx): Promise<number[][]> {
     if (this.failure !== undefined) return Promise.reject(this.failure)
+    if (this.closing !== undefined) return Promise.reject(new Error('Hosted embeddings are shutting down'))
     if (context.signal?.aborted === true) return Promise.reject(cancelled(context.signal.reason))
     if (this.count >= this.limits.total || (this.counts.get(owner) ?? 0) >= this.limits.perAccount) {
       return Promise.reject(new Error('Hosted embedding queue is full'))
@@ -151,6 +154,7 @@ export class HostedEmbeddings {
     } else { this.fail(new Error('Invalid embedding vectors')); return }
     this.active = undefined
     this.release(job)
+    this.settled?.()
     this.pump()
   }
 
@@ -170,15 +174,29 @@ export class HostedEmbeddings {
     this.active = undefined
     this.queues.clear()
     for (const job of jobs) { job.reject(error); this.release(job) }
+    this.settled?.()
   }
 
   /**
-   * Stop accepting requests, reject unfinished work, and join the worker's termination.
+   * Stop accepting requests, reject queued work, let the running request settle, then join the worker's termination.
+   *
+   * The running request may be inside onnxruntime, including the model load the warm-up starts. Terminating the worker
+   * then makes onnxruntime raise an error into a stopping JavaScript environment, which aborts the whole process.
+   * Waiting therefore lasts as long as that one request: a model load or one embedding batch.
    * @returns completion after the worker exits.
    */
   close(): Promise<void> {
     return this.closing ??= (async () => {
-      this.fail(new Error('Hosted embeddings are shutting down'))
+      const error = new Error('Hosted embeddings are shutting down')
+      const queued = [...this.queues.values()].flat()
+      this.queues.clear()
+      for (const job of queued) { job.reject(error); this.release(job) }
+      if (this.active !== undefined && this.failure === undefined) {
+        // `embed()` refuses new work while closing, so `pump()` after this job finds nothing and leaves the worker idle.
+        await new Promise<void>((resolve) => { this.settled = resolve })
+        this.settled = undefined
+      }
+      this.fail(error)
       await this.worker?.terminate()
     })()
   }
