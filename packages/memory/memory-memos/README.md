@@ -82,6 +82,7 @@ The runtime root holds an optional MemOS `config.yaml` (shared MemOS core schema
 | [`src/cores.ts`](src/cores.ts) | One lazily opened MemOS core per account |
 | [`src/core-pool.ts`](src/core-pool.ts) | Host side of the core workers: assigns each account to the worker holding the fewest, stands in for its `MemoryCore`, and serves the workers' LLM, embedding, and maintenance-gate requests |
 | [`src/core-worker.ts`](src/core-worker.ts), [`src/core-protocol.ts`](src/core-protocol.ts) | Worker entry that opens and runs the cores assigned to it, and the messages between it and the Host |
+| [`src/embedding.ts`](src/embedding.ts), [`src/worker.ts`](src/worker.ts) | Host-owned embedding worker with per-account queues. Closing it rejects queued requests at once and waits for the running request, such as the start-up model load, before it terminates the worker, because terminating the worker during an onnxruntime call aborts the whole process |
 | [`src/migrate.ts`](src/migrate.ts) | One-time split of the shared database of earlier builds into per-account databases |
 | [`src/runtime.ts`](src/runtime.ts) | `MemoryProvider` over `MemoryCore`: namespaces, per-session capture queue, MemOS session and episode lifecycle, tool-reference translation |
 | [`src/host-llm.ts`](src/host-llm.ts) | MemOS `HostLlmBridge` over `ctx.llm` with an async-local per-session route |
@@ -155,6 +156,7 @@ None for the conversation: each call is a separate request with its own messages
 ## Known Limitations and Deferred Work
 
 - **Core workers hold every opened account** — an account's core and vector index stay on its worker until the provider stops; closing idle accounts is not implemented. A worker that stops releases its accounts, which open again on their next use, and calls in flight on it fail.
+- **A core worker that loads the model itself is terminated without waiting** — with `coreWorkers` above `0` and `embeddingExecution: host`, each core worker loads the local embedding model, and stopping the provider terminates the worker even during an onnxruntime call, which can abort the process. The shipped compositions use `embeddingExecution: worker`, where core workers send embedding requests to the Host's worker instead.
 - **Memory sync stays in the Host process** — `src/sync.ts` reads and writes each account's database over its own connection on the Host's thread.
 - **Shared-database split** — the first start after per-account memory moves each account's rows out of `home/data/memos.db` into its own database and renames the shared file to `memos.db.split`; the split goes away at the first tagged release.
 - **Capture provenance** — MemOS stores tool output in traces, so text a tool read can reappear in later recalls; recalled context is framed as untrusted data.
