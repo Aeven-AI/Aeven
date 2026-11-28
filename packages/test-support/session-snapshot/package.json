@@ -31,7 +31,7 @@
     "@deepseek-ai/cordis-plugin-include": "workspace:*",
     "@aeven/loader-smoke": "workspace:*",
     "js-yaml": "^4.2.0",
-    "vitest": "^4.1.8"
+    "vitest": "^5.1.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
