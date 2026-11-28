@@ -152,7 +152,7 @@ describe('subagent catalog Remote', () => {
     )
     await expect(subagents.remoteExportList(PARENT, signal)).rejects.toMatchObject({
       code: 'subagent/projections-unavailable',
-      message: expect.stringContaining('sessionProjections') as unknown as string,
+      message: expect.stringContaining('sessionProjections') as string,
     })
 
     listChildren.mockRejectedValue(new Error('disk gone'))

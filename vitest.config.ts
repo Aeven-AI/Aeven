@@ -170,52 +170,35 @@ const processBoundTests = [
 export default defineConfig({
   // Aliases, not native tsconfig resolution: a path mapping must win over the
   // package's own exports so built lib/ never loads a second module-singleton
-  // copy (see workspaceAliases). Every project below repeats it — a project's
-  // resolve does not inherit the root's.
+  // copy (see workspaceAliases).
   resolve: { alias: workspaceAliases() },
   plugins: [standardDecoratorPlugin()],
   test: {
+    // Inline projects extend this config and Vite concatenates arrays, so every
+    // shared option is declared here once and `include` only on the projects;
+    // a root `include` would be added to each project's own.
+    execArgv: vitestExecArgv,
+    // Node 24 has aborted in its CJS lexer (v8::ToLocalChecked Empty
+    // MaybeLocal in cjs_lexer::Parse) from worker threads on macOS,
+    // Linux, and Windows. Forked workers avoid that shared thread path.
+    pool: 'forks',
     setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],
-    // .tsx: client component specs (jsdom via per-file @vitest-environment pragma).
-    include: testIncludes,
-    exclude: [...platformUnsupportedTests, ...hostPrivilegeTests],
+    exclude: [...platformUnsupportedTests, ...hostPrivilegeTests, ...coverageExemptExcludes],
     // One coverage invocation aggregates both projects. Every suite forks for
     // Node stability; process-bound suites stay separate for inventory control.
     projects: [
       {
-        resolve: { alias: workspaceAliases() },
-        plugins: [standardDecoratorPlugin()],
         test: {
           name: 'thread-safe',
-          execArgv: vitestExecArgv,
-          // Node 24 has aborted in its CJS lexer (v8::ToLocalChecked Empty
-          // MaybeLocal in cjs_lexer::Parse) from worker threads on macOS,
-          // Linux, and Windows. Forked workers avoid that shared thread path.
-          pool: 'forks',
-          setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],
+          // .tsx: client component specs (jsdom via per-file @vitest-environment pragma).
           include: testIncludes,
-          exclude: [
-            ...platformUnsupportedTests,
-            ...hostPrivilegeTests,
-            ...processBoundTests,
-            ...coverageExemptExcludes,
-          ],
+          exclude: processBoundTests,
         },
       },
       {
-        resolve: { alias: workspaceAliases() },
-        plugins: [standardDecoratorPlugin()],
         test: {
           name: 'process-bound',
-          execArgv: vitestExecArgv,
-          pool: 'forks',
-          setupFiles: ['./scripts/test-proxy-environment.ts', './scripts/test-invariants.ts'],
           include: processBoundTests,
-          exclude: [
-            ...platformUnsupportedTests,
-            ...hostPrivilegeTests,
-            ...coverageExemptExcludes,
-          ],
         },
       },
     ],

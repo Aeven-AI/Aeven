@@ -51,7 +51,7 @@
     "test:expected": "vitest run --config vitest.expected.config.ts",
     "test:expected:refresh": "AVN_SNAPSHOT=refresh vitest run --config vitest.expected.config.ts",
     "test:snapshot": "vitest run --config vitest.snapshot.config.ts",
-    "test:snapshot:record": "AVN_SNAPSHOT=record vitest run --config vitest.snapshot.config.ts --update",
+    "test:snapshot:record": "AVN_SNAPSHOT=record vitest run --config vitest.snapshot.config.ts --update=all",
     "test:snapshot:refresh": "AVN_SNAPSHOT=refresh vitest run --config vitest.snapshot.config.ts",
     "test:web": "npm run build && npm run test:web:built",
     "test:web:built": "vitest run --config vitest.web.config.ts",
@@ -209,7 +209,7 @@
     "@types/mdast": "^4.0.4",
     "@types/node": "^22.20.0",
     "@types/spdx-expression-parse": "^4.0.0",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^5.1.2",
     "@yarnpkg/cli-dist": "4.18.0",
     "cjs-module-lexer": "^2.3.0",
     "eslint-plugin-sonarjs": "^4.1.0",
@@ -233,6 +233,6 @@
     "tsdown": "^0.22.14",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^5.1.2"
   }
 }

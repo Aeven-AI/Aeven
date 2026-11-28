@@ -408,7 +408,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await expect.poll(readSecondaryFontSize, { timeout: 5_000 }).toBe('13px')
     await increase.click()
     await dialog.getByText('16', { exact: true }).waitFor({ timeout: 5_000 })
-    await expect.poll(readFontSize, { timeout: 5_000 }).toBe('16px')
+    await expect.poll(() => readFontSize(), { timeout: 5_000 }).toBe('16px')
     await expect.poll(readSecondaryFontSize, { timeout: 5_000 }).toBe('14px')
     await expect.poll(async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'), { timeout: 5_000 })
       .toMatch(/ui-theme:\n(?:\s+\w+: .*\n)*?\s+fontSize: 16/)
@@ -421,7 +421,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await page.reload({ waitUntil: 'load' })
     acknowledgeReloadConnectionLoss(tripwire, warningStart)
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-    await expect.poll(readFontSize, { timeout: 5_000 }).toBe('16px')
+    await expect.poll(() => readFontSize(), { timeout: 5_000 }).toBe('16px')
     expect(await readSecondaryFontSize()).toBe('14px')
 
     // Restore the default for the specs that follow (and the dialog golden).
@@ -435,7 +435,7 @@ describe('web e2e: settings modal and General preferences', () => {
     await restored.getByText('15', { exact: true }).waitFor({ timeout: 5_000 })
     await decrease.click()
     await restored.getByText('14', { exact: true }).waitFor({ timeout: 5_000 })
-    await expect.poll(readFontSize, { timeout: 5_000 }).toBe('14px')
+    await expect.poll(() => readFontSize(), { timeout: 5_000 }).toBe('14px')
     await page.keyboard.press('Escape')
     expect(tripwire.pageErrors).toEqual([])
   }, 90_000)

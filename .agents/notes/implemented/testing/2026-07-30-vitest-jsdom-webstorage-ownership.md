@@ -10,7 +10,7 @@ The supported Node range includes releases that reserve a process-wide `globalTh
 
 ## Decision
 
-Vitest workers disable Node's process-wide Web Storage when the runtime advertises the `--webstorage` flag. The configuration passes `--no-webstorage` through each test project's `execArgv`; runtimes without that flag receive no argument. Node-environment suites therefore stay browser-free, and files selecting jsdom through `@vitest-environment jsdom` receive jsdom's isolated `localStorage`.
+Vitest workers disable Node's process-wide Web Storage when the runtime advertises the `--webstorage` flag. The root Vitest configuration passes `--no-webstorage` through `execArgv`, which every test project inherits; runtimes without that flag receive no argument. Node-environment suites therefore stay browser-free, and files selecting jsdom through `@vitest-environment jsdom` receive jsdom's isolated `localStorage`.
 
 The Node compatibility aggregate runs a dedicated jsdom smoke on every advertised compatibility line. It asserts both the conditional worker argument and usable storage, so a future Node or Vitest change cannot leave the primary Node 24 suite as the only signal.
 
